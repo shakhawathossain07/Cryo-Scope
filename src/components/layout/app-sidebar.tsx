@@ -1,0 +1,52 @@
+'use client';
+
+import { usePathname } from 'next/navigation';
+import {
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarContent,
+} from '@/components/ui/sidebar';
+import { Logo } from '@/components/icons';
+import { LayoutDashboard, LineChart, Flame, FileText } from 'lucide-react';
+import Link from 'next/link';
+
+const menuItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/analysis', label: 'Trend Analysis', icon: LineChart },
+  { href: '/prediction', label: 'Hotspot Prediction', icon: Flame },
+  { href: '/reporting', label: 'Risk Reporting', icon: FileText },
+];
+
+export function AppSidebar() {
+  const pathname = usePathname();
+
+  return (
+    <>
+      <SidebarHeader>
+        <Logo />
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarMenu>
+          {menuItems.map((item) => (
+            <SidebarMenuItem key={item.href}>
+              <Link href={item.href} legacyBehavior passHref>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === item.href}
+                  tooltip={{ children: item.label }}
+                >
+                  <a>
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </a>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarContent>
+    </>
+  );
+}

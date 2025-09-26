@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "map-base",
+      "description": "A satellite view of a polar region used as a base map.",
+      "imageUrl": "https://images.unsplash.com/photo-1579818136210-457ff9197a99?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxhcmN0aWMlMjBtYXB8ZW58MHx8fHwxNzU4ODYwNTA5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "arctic map"
+    },
+    {
+      "id": "hotspot-map",
+      "description": "A generated map showing predicted methane hotspots.",
+      "imageUrl": "https://images.unsplash.com/photo-1617480088906-60b89b36f305?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxyaXNrJTIwbWFwfGVufDB8fHx8MTc1ODgwNzE1M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "risk map"
+    },
+    {
+      "id": "sar-data-vis",
+      "description": "A visualization of Synthetic Aperture Radar (SAR) data.",
+      "imageUrl": "https://images.unsplash.com/photo-1655330862874-f7997686a244?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxyYWRhciUyMGRhdGF8ZW58MHx8fHwxNzU4ODYwNTA5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "radar data"
+    },
+    {
+      "id": "optical-data-vis",
+      "description": "An optical satellite image of a land area.",
+      "imageUrl": "https://images.unsplash.com/photo-1576767969134-4318b9bd84a5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzYXRlbGxpdGUlMjBpbWFnZXxlbnwwfHx8fDE3NTg4NjA1MDl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "satellite image"
+    }
+  ]
 }
