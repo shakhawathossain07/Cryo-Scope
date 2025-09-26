@@ -18,22 +18,34 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
+
+const fileSchema = z.any().refine(file => file?.length == 1, 'File is required.');
 
 const formSchema = z.object({
   regionName: z.string().min(1, 'Region is required.'),
-  sarData: z.any().optional(),
+  sarData: fileSchema,
   opticalData: z.any().optional(),
   historicalClimateData: z.string().optional(),
 });
+
+const fileToDataUri = (file: File) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            resolve(event.target?.result);
+        };
+        reader.onerror = (error) => {
+            reject(error);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
 
 export default function AnalysisPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalyzePermafrostTrendOutput | null>(null);
   const { toast } = useToast();
-  const mapImage = getPlaceholderImage('map-base');
-
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,8 +58,20 @@ export default function AnalysisPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setAnalysisResult(null);
+
     try {
-      const result = await analyzePermafrostTrendAction(values);
+        const sarDataUri = await fileToDataUri(values.sarData[0]) as string;
+        let opticalDataUri;
+        if (values.opticalData && values.opticalData[0]) {
+            opticalDataUri = await fileToDataUri(values.opticalData[0]) as string;
+        }
+
+      const result = await analyzePermafrostTrendAction({
+          regionName: values.regionName,
+          historicalClimateData: values.historicalClimateData,
+          sarDataUri,
+          opticalDataUri
+      });
       setAnalysisResult(result);
     } catch (error) {
       console.error('Analysis failed:', error);
@@ -59,6 +83,9 @@ export default function AnalysisPage() {
     }
     setIsLoading(false);
   }
+
+  const sarDataRef = form.register('sarData');
+  const opticalDataRef = form.register('opticalData');
 
   return (
     <div className="flex h-full flex-col">
@@ -106,7 +133,7 @@ export default function AnalysisPage() {
                         <FormItem>
                           <FormLabel>SAR Data</FormLabel>
                           <FormControl>
-                            <Input type="file" disabled />
+                            <Input type="file" {...sarDataRef} />
                           </FormControl>
                            <FormMessage />
                         </FormItem>
@@ -119,7 +146,7 @@ export default function AnalysisPage() {
                         <FormItem>
                           <FormLabel>Optical Data (Optional)</FormLabel>
                           <FormControl>
-                            <Input type="file" disabled />
+                            <Input type="file" {...opticalDataRef} />
                           </FormControl>
                            <FormMessage />
                         </FormItem>

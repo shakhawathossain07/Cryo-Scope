@@ -16,11 +16,26 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 
+const fileSchema = z.any().refine(file => file?.length == 1, 'File is required.');
+
 const formSchema = z.object({
   regionDescription: z.string().min(10, 'Please provide a more detailed description.'),
-  sarData: z.any().optional(),
-  climateData: z.any().optional(),
+  sarData: fileSchema,
+  climateData: fileSchema,
 });
+
+const fileToDataUri = (file: File) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            resolve(event.target?.result);
+        };
+        reader.onerror = (error) => {
+            reject(error);
+        };
+        reader.readAsDataURL(file);
+    });
+}
 
 export default function PredictionPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -38,7 +53,13 @@ export default function PredictionPage() {
     setIsLoading(true);
     setPredictionResult(null);
     try {
-      const result = await predictMethaneHotspotsAction(values);
+      const sarData = await fileToDataUri(values.sarData[0]) as string;
+      const climateData = await fileToDataUri(values.climateData[0]) as string;
+      const result = await predictMethaneHotspotsAction({
+          regionDescription: values.regionDescription,
+          sarData,
+          climateData
+      });
       setPredictionResult(result);
     } catch (error) {
       console.error('Prediction failed:', error);
@@ -50,6 +71,9 @@ export default function PredictionPage() {
     }
     setIsLoading(false);
   }
+
+  const sarDataRef = form.register('sarData');
+  const climateDataRef = form.register('climateData');
 
   return (
     <div className="flex h-full flex-col">
@@ -92,7 +116,7 @@ export default function PredictionPage() {
                         <FormItem>
                           <FormLabel>SAR Thaw Stage Data</FormLabel>
                           <FormControl>
-                            <Input type="file" disabled />
+                            <Input type="file" {...sarDataRef} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -105,7 +129,7 @@ export default function PredictionPage() {
                         <FormItem>
                           <FormLabel>Historical Climate Patterns</FormLabel>
                           <FormControl>
-                            <Input type="file" disabled />
+                            <Input type="file" {...climateDataRef} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
