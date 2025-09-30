@@ -2,7 +2,8 @@
 
 A comprehensive permafrost monitoring and analysis platform powered by **100% NASA satellite data** and scientific methane correlation models.
 
-![Cryo-Scope Dashboard](https://via.placeholder.com/800x400?text=Cryo-Scope+Real-Time+NASA+Dashboard)
+<img width="1918" height="913" alt="image" src="https://github.com/user-attachments/assets/8e592ed3-d96b-457f-be53-c0b1a020293e" />
+
 
 ## 🚀 Overview
 
