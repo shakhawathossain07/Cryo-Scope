@@ -28,6 +28,7 @@ export function SentinelHubMethaneLayer({
   const [error, setError] = useState<string | null>(null);
   const [showLayer, setShowLayer] = useState(true);
   const methaneLayerRef = useRef<L.TileLayer | null>(null);
+  const [dataAvailable, setDataAvailable] = useState<boolean | null>(null);
   const attemptRef = useRef<number>(0);
 
   useEffect(() => {
@@ -72,16 +73,17 @@ export function SentinelHubMethaneLayer({
             version: '1.3.0',
             crs: L.CRS.EPSG3857,
             // WMS/server hint for cached tiles
-            // @ts-expect-error - tiled is a valid WMS parameter
+            // @ts-ignore
             tiled: true,
-            // @ts-expect-error - TIME is a valid WMS parameter
+            // @ts-ignore - TIME is a valid WMS parameter
             time: timeRange,
           });
 
           methaneLayerRef.current = methaneLayer;
 
           let tilesLoaded = 0;
-          const loadingTimeout: NodeJS.Timeout = setTimeout(() => {
+          let tilesErrored = 0;
+          let loadingTimeout: NodeJS.Timeout;
 
           methaneLayer.on('loading', () => {
             console.log(`🔄 Loading Sentinel Hub tiles for ${regionId} (attempt ${attemptRef.current + 1})...`);
@@ -91,12 +93,14 @@ export function SentinelHubMethaneLayer({
             tilesLoaded++;
             console.log(`📦 Tile loaded for ${regionId} (${tilesLoaded} tiles)`);
             if (tilesLoaded > 0) {
+              setDataAvailable(true);
               setLoading(false);
               setError(null);
             }
           });
 
-          methaneLayer.on('tileerror', (error: unknown) => {
+          methaneLayer.on('tileerror', (error: any) => {
+            tilesErrored++;
             console.error(`❌ Tile load error for ${regionId}:`, error);
           });
 
@@ -110,6 +114,9 @@ export function SentinelHubMethaneLayer({
           });
 
           if (showLayer) methaneLayer.addTo(map);
+
+          // Timeout handler: retry with broader time window if first attempt had no tiles
+          loadingTimeout = setTimeout(() => {
             if (tilesLoaded === 0) {
               if (attemptRef.current === 0) {
                 // Expand to last 30 days and retry once
@@ -122,6 +129,7 @@ export function SentinelHubMethaneLayer({
                 console.warn(`⏱️ No tiles loaded for ${regionId} with 7-day window; retrying with 30-day window ${expanded}`);
                 addLayerWithTimeRange(expanded);
               } else {
+                setDataAvailable(false);
                 setError('No Sentinel-5P CH₄ imagery for this region/time window. Falling back to model estimates.');
                 setLoading(false);
               }

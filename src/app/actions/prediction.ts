@@ -1,12 +1,11 @@
 'use server';
 
 import { predictMethaneHotspots } from '@/ai/flows/predict-methane-hotspots';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { SupabaseService, PredictionResult } from '@/lib/supabase';
 import { z } from 'zod';
 
-type FormSchema = z.infer<typeof formSchemaDefinition>;
-
-const formSchemaDefinition = z.object({
+const formSchema = z.object({
   regionDescription: z.string(),
   sarData: z.string(),
   climateData: z.string(),
@@ -15,7 +14,7 @@ const formSchemaDefinition = z.object({
 // A base64 encoded 1x1 transparent PNG
 const FAKE_DATA_URI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
-export async function predictMethaneHotspotsAction(input: FormSchema) {
+export async function predictMethaneHotspotsAction(input: z.infer<typeof formSchema>) {
   try {
     const result = await predictMethaneHotspots({
       regionDescription: input.regionDescription,

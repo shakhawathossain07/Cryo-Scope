@@ -112,7 +112,7 @@ export default function PredictionPage() {
                     <FormField
                       control={form.control}
                       name="sarData"
-                      render={() => (
+                      render={({ field }) => (
                         <FormItem>
                           <FormLabel>SAR Thaw Stage Data</FormLabel>
                           <FormControl>
@@ -125,7 +125,7 @@ export default function PredictionPage() {
                     <FormField
                       control={form.control}
                       name="climateData"
-                      render={() => (
+                      render={({ field }) => (
                         <FormItem>
                           <FormLabel>Historical Climate Patterns</FormLabel>
                           <FormControl>

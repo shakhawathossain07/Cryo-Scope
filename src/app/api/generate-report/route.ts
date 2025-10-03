@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { region, format = 'full', dashboardData: providedData } = body;
+    const { region, format = 'full', customPrompt, dashboardData: providedData } = body;
 
     // Use provided data or fetch from dashboard
     let dashboardData: DashboardData;
