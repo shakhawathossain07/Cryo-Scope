@@ -1,17 +1,18 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getMethaneHotspots, getTemperatureData } from '@/lib/nasa-data-service';
 import { REGION_COORDINATES, type RegionKey } from '@/lib/regions';
 
 export async function GET(
-  _request: Request,
-  { params }: { params: { regionId: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ regionId: string }> }
 ) {
-  const regionId = params.regionId as RegionKey;
+  const { regionId: regionIdRaw } = await params;
+  const regionId = regionIdRaw as RegionKey;
   const regionConfig = REGION_COORDINATES[regionId];
 
   if (!regionConfig) {
     return NextResponse.json(
-      { error: `Unknown region '${params.regionId}'` },
+      { error: `Unknown region '${regionIdRaw}'` },
       { status: 400 }
     );
   }

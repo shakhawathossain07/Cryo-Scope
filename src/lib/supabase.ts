@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://siaxwbhyahlshwqzvafe.supabase.co'
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpYXh3Ymh5YWhsc2h3cXp2YWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNjYwMzAsImV4cCI6MjA3NDc0MjAzMH0.PfjNCyUdsK7oqMeAPNF60DyPQyCeZGIj8aQe5tRQTOA'
@@ -112,7 +112,7 @@ export class SupabaseService {
   }
 
   // Real-time subscriptions
-  static subscribeToPermafrostData(callback: (payload: any) => void) {
+  static subscribeToPermafrostData(callback: (payload: RealtimePostgresChangesPayload<PermafrostData>) => void) {
     return supabase
       .channel('permafrost_data_changes')
       .on('postgres_changes', 
@@ -122,7 +122,7 @@ export class SupabaseService {
       .subscribe()
   }
 
-  static subscribeToRiskAssessments(callback: (payload: any) => void) {
+  static subscribeToRiskAssessments(callback: (payload: RealtimePostgresChangesPayload<RiskAssessment>) => void) {
     return supabase
       .channel('risk_assessments_changes')
       .on('postgres_changes', 

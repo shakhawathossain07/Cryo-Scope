@@ -3,24 +3,45 @@
 import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-// Components temporarily removed to fix SSR issues
-import { ShieldAlert, Layers, Thermometer, Loader2, Activity, Satellite, AlertTriangle, Target } from 'lucide-react';
+import { ShieldAlert, Layers, Thermometer, Loader2, Activity, Satellite, AlertTriangle, Target, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type {
   PrecisionZone,
   RegionTemperatureData,
-  TransparentDashboardResponse
+  TransparentDashboardResponse,
+  RiskZone,
+  MethaneHotspot
 } from '@/lib/nasa-data-service';
 type TransparentDashboardData = TransparentDashboardResponse;
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { REGION_COORDINATES } from '@/lib/regions';
+import Image from 'next/image';
+import dynamic from 'next/dynamic';
+
+// Dynamically import Sentinel Hub component (client-side only due to Leaflet)
+const SentinelHubMethaneLayer = dynamic(
+  () => import('@/components/dashboard/sentinel-hub-methane-layer').then(mod => ({ default: mod.SentinelHubMethaneLayer })),
+  { ssr: false }
+);
+
+// Import new chart components
+import { TemperatureTrendChart } from '@/components/dashboard/temperature-trend-chart';
+import { MethaneConcentrationChart } from '@/components/dashboard/methane-concentration-chart';
+import { RiskDistributionChart } from '@/components/dashboard/risk-distribution-chart';
+import { Sparkline } from '@/components/dashboard/sparkline';
 
 export default function DashboardPage() {
   const [highRiskCount, setHighRiskCount] = useState(0);
   const [tempAnomaly, setTempAnomaly] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [dataLayers, setDataLayers] = useState(4);
+  const [dataLayers, setDataLayers] = useState(0);
   const [apiStatus, setApiStatus] = useState<TransparentDashboardData['connectivity'] | null>(null);
   const [transparentData, setTransparentData] = useState<TransparentDashboardData | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
+  
+  // Track historical data for sparklines
+  const [tempHistory, setTempHistory] = useState<number[]>([]);
+  const [riskHistory, setRiskHistory] = useState<number[]>([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -30,8 +51,8 @@ export default function DashboardPage() {
   }, []);
 
   const loadDashboardData = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       // Get transparent dashboard data with clear real vs calculated data labeling
       console.log('🔄 Loading transparent dashboard data...');
       const response = await fetch('/api/transparent-dashboard', {
@@ -59,21 +80,24 @@ export default function DashboardPage() {
         const totalHighRisk = (summary.critical || 0) + (summary.high || 0);
 
         if (totalHighRisk > 0) {
-          setHighRiskCount(Math.max(totalHighRisk, 4));
+          setHighRiskCount(totalHighRisk);
         } else {
-          const zones = data.algorithmicRiskAssessment.zones.map((zone) => zone.riskLevel);
-          const fallbackCount = zones.filter((level) => level === 'CRITICAL' || level === 'HIGH').length;
-          setHighRiskCount(Math.max(fallbackCount, 4));
+          const zones = data.algorithmicRiskAssessment.zones;
+          const fallbackCount = zones.filter((z) => z.riskLevel === 'CRITICAL' || z.riskLevel === 'HIGH').length;
+          setHighRiskCount(fallbackCount);
         }
+
+        // Update risk history for sparkline
+        setRiskHistory(prev => [...prev.slice(-6), totalHighRisk || 0]);
 
         console.log('🎯 Risk zones calculated:', {
           summary,
           derivedHighRisk: (summary.critical || 0) + (summary.high || 0),
-          fallbackHighRisk: data.algorithmicRiskAssessment.zones.filter((z: Record<string, unknown>) => z.riskLevel === 'CRITICAL' || z.riskLevel === 'HIGH').length
+          fallbackHighRisk: data.algorithmicRiskAssessment.zones.filter((z) => z.riskLevel === 'CRITICAL' || z.riskLevel === 'HIGH').length
         });
       } else {
-        console.warn('⚠️ No risk assessment data found, using fallback');
-        setHighRiskCount(4); // Fallback to expected number based on display
+        console.warn('⚠️ No risk assessment data found');
+        setHighRiskCount(0);
       }
       
       // Calculate average temperature anomaly from real NASA data - fix precision
@@ -82,6 +106,10 @@ export default function DashboardPage() {
         const avgAnomaly = totalAnomaly / data.realTemperatureData.length;
         const roundedAnomaly = Math.round(avgAnomaly * 10) / 10;
         setTempAnomaly(roundedAnomaly);
+        
+        // Update temperature history for sparkline
+        setTempHistory(prev => [...prev.slice(-6), roundedAnomaly]);
+        
         console.log('🌡️ Temperature calculated:', {
           regions: data.realTemperatureData.length,
           totalAnomaly,
@@ -89,23 +117,37 @@ export default function DashboardPage() {
           rounded: roundedAnomaly
         });
       } else {
-        console.warn('⚠️ No temperature data found, using fallback');
-        setTempAnomaly(12.5); // Fallback based on expected Arctic warming
+        console.warn('⚠️ No temperature data found');
+        setTempAnomaly(0);
       }
       
-      setDataLayers(4); // Real temp data + calculated methane + risk assessment + satellite imagery
+  // Compute active data layers truthfully
+  // 1) Real temperature
+  const layerTemp = (data.realTemperatureData && data.realTemperatureData.length > 0) ? 1 : 0;
+  // 2) Risk assessment
+  const layerRisk = (data.algorithmicRiskAssessment && data.algorithmicRiskAssessment.zones && data.algorithmicRiskAssessment.zones.length > 0) ? 1 : 0;
+  // 3) Methane coverage (real satellite if any region has real satellite source)
+  const hasRealMethane = (data.coverage?.regionsWithRealMethane || 0) > 0;
+  const layerMethane = hasRealMethane ? 1 : 0;
+  // 4) Satellite imagery (Sentinel Hub layer attempts)
+  // We can't know tile load here; assume available when proxy/env configured
+  const hasInstance = !!process.env.NEXT_PUBLIC_SENTINEL_HUB_INSTANCE_ID || !!process.env.SENTINEL_HUB_INSTANCE_ID;
+  const layerImagery = hasInstance ? 1 : 0;
+  setDataLayers(layerTemp + layerRisk + layerMethane + layerImagery);
       setApiStatus(data.connectivity);
+      setLastUpdated(new Date().toLocaleTimeString());
 
       console.log('✅ Dashboard data loaded successfully');
     } catch (error) {
       console.error('❌ Error loading dashboard data:', error);
-      console.log('🔄 Using fallback values for critical Arctic monitoring zones');
+      console.log('🔄 Using fallback values');
       
-      // Use realistic fallback values based on known Arctic conditions
-      setHighRiskCount(4); // Siberia, Alaska, Canada, Greenland critical zones
-      setTempAnomaly(12.5); // Realistic Arctic temperature anomaly
-      setDataLayers(4);
-      setApiStatus({ connected: false, status: 'Connection Error' });
+      // Use minimal fallback values
+      setHighRiskCount(0);
+      setTempAnomaly(0);
+  setDataLayers(0);
+      setApiStatus(null);
+      setLastUpdated(new Date().toLocaleTimeString());
     } finally {
       setLoading(false);
     }
@@ -119,12 +161,29 @@ export default function DashboardPage() {
     ? transparentData.realTemperatureData
     : [];
 
+  const riskZones: RiskZone[] = Array.isArray(transparentData?.algorithmicRiskAssessment?.zones)
+    ? transparentData.algorithmicRiskAssessment.zones
+    : [];
+
+  const methaneHotspots: MethaneHotspot[] = [];
+  precisionZones.forEach(zone => {
+    if (zone.hotspot) {
+      methaneHotspots.push(zone.hotspot);
+    }
+  });
+
   const fallbackRegionsActive =
     realTemperatureData.some((region) => region.dataIntegrity?.usingFallback) ||
     precisionZones.some((zone) => zone.usingFallback);
 
   const realMethaneCoverage = transparentData?.coverage?.regionsWithRealMethane ?? precisionZones.filter((zone) => zone.methane.dataSource.type === 'REAL_NASA').length;
   const fallbackMethaneRegions = transparentData?.coverage?.fallbackRegions ?? precisionZones.filter((zone) => zone.usingFallback).length;
+
+  const getTrendIcon = (value: number) => {
+    if (value > 0) return <TrendingUp className="h-4 w-4 text-orange-500" />;
+    if (value < 0) return <TrendingDown className="h-4 w-4 text-blue-500" />;
+    return null;
+  };
 
   const formatCoordinate = (value: number, axis: 'lat' | 'lon') => {
     if (!Number.isFinite(value)) return '—';
@@ -143,350 +202,525 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex h-full flex-col">
-      <PageHeader
-        title="Dashboard"
-        description="Real-time satellite monitoring of permafrost thaw and methane emissions."
-      />
-      <main className="flex-1 overflow-auto p-4 pt-0 md:p-6 md:pt-0">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                High-Risk Zones
-              </CardTitle>
-              <ShieldAlert className="h-4 w-4 text-accent" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : highRiskCount}
+    <>
+      <div className="flex h-full flex-col">
+        <PageHeader
+          title="Dashboard"
+          description="Real-time satellite monitoring of permafrost thaw and methane emissions powered by NASA data."
+        />
+        <main className="flex-1 overflow-auto p-4 pt-0 md:p-6 md:pt-0">
+          {/* Show loading skeleton on initial load */}
+          {loading && !transparentData ? (
+            <div className="space-y-6">
+              {/* Loading Skeleton for Metric Cards */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <Card key={i}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                      <div className="h-4 w-4 bg-muted animate-pulse rounded" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-8 w-16 bg-muted animate-pulse rounded mb-2" />
+                      <div className="h-3 w-32 bg-muted animate-pulse rounded" />
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {transparentData
-                  ? (fallbackRegionsActive ? 'Hybrid NASA + baseline zones' : 'Live NASA-calculated zones')
-                  : 'Fallback data - check connection'}
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Data Layers Active
-              </CardTitle>
-              <Layers className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : dataLayers}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                SAR, Optical, Climate, Thaw
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Temp Anomaly
-              </CardTitle>
-              <Thermometer className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${tempAnomaly >= 0 ? '+' : ''}${tempAnomaly.toFixed(1)}°C`}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {realTemperatureData.length > 0
-                  ? (fallbackRegionsActive ? 'Validated baseline engaged for impacted regions' : 'Real NASA measurements')
-                  : 'Arctic baseline estimate'}
-              </p>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                NASA API Status
-              </CardTitle>
-              <Activity className={`h-4 w-4 ${apiStatus?.connected ? 'text-green-500' : 'text-red-500'}`} />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${apiStatus?.connected ? 'text-green-500' : 'text-red-500'}`}>
-                {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : (apiStatus?.connected ? 'Connected' : 'Offline')}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {apiStatus?.connected ? `Key: ${apiStatus.apiKey}` : 'Check API configuration'}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {apiStatus?.connected
-                  ? String(apiStatus.dataFreshness || 'Live')
-                  : 'Telemetry temporarily routed through baseline model'}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+              {/* Loading Skeleton for Charts */}
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <div className="h-6 w-48 bg-muted animate-pulse rounded" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64 bg-muted animate-pulse rounded" />
+                  </CardContent>
+                </Card>
 
-        {/* Data Transparency Section */}
-        <div className="mt-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShieldAlert className="h-5 w-5 text-blue-500" />
-                Data Transparency & Sources
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-green-600">✅ Real NASA Data</h4>
-                  <ul className="text-sm space-y-1">
-                    <li>• Temperature measurements</li>
-                    <li>• Satellite imagery</li>
-                    <li>• Geographic coordinates</li>
-                    <li>• Weather patterns</li>
-                    {realMethaneCoverage > 0 && <li>• Methane concentrations (Sentinel-5P TROPOMI)</li>}
-                  </ul>
-                  <Badge variant="outline" className="text-green-600 border-green-600">
-                    95% Confidence
-                  </Badge>
+                <div className="grid gap-6 md:grid-cols-2">
+                  {[1, 2].map((i) => (
+                    <Card key={i}>
+                      <CardHeader>
+                        <div className="h-6 w-40 bg-muted animate-pulse rounded" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-64 bg-muted animate-pulse rounded" />
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-orange-600">⚠️ Calculated Estimates</h4>
-                  <ul className="text-sm space-y-1">
-                    <li>• Methane fallback estimates (when satellite data unavailable)</li>
-                    <li>• Emission hotspots</li>
-                    <li>• Permafrost thaw rates</li>
-                    <li>• Gas leak predictions</li>
-                  </ul>
-                  <Badge variant="outline" className="text-orange-600 border-orange-600">
-                    75% Confidence
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-blue-600">🤖 Algorithmic Risk</h4>
-                  <ul className="text-sm space-y-1">
-                    <li>• Risk zone classifications</li>
-                    <li>• Threat level assessments</li>
-                    <li>• Alert priorities</li>
-                    <li>• Trend analysis</li>
-                  </ul>
-                  <Badge variant="outline" className="text-blue-600 border-blue-600">
-                    80% Confidence
-                  </Badge>
-                </div>
+
+                <Card>
+                  <CardHeader>
+                    <div className="h-6 w-56 bg-muted animate-pulse rounded" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-96 bg-muted animate-pulse rounded" />
+                  </CardContent>
+                </Card>
               </div>
-              <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-                <p className="text-sm text-slate-700">
-                  <strong>Note:</strong> This system combines real NASA satellite data with scientific models to provide Arctic monitoring insights. 
-                  Temperature and location data default to direct NASA measurements, with a validated Arctic baseline model used only when telemetry is temporarily unavailable. 
-                  Methane values stream directly from NASA Sentinel-5P TROPOMI whenever recent granules are available; the correlation-based fallback model activates automatically for regions without a live pass.
+
+              {/* Loading message */}
+              <div className="flex items-center justify-center gap-2 text-muted-foreground py-8">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Loading NASA data and initializing visualizations...</span>
+              </div>
+            </div>
+          ) : (
+            <>
+          {/* Enhanced Metric Cards with Sparklines */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  High-Risk Zones
+                </CardTitle>
+                <ShieldAlert className="h-4 w-4 text-accent" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : highRiskCount}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {transparentData
+                    ? (fallbackRegionsActive ? 'Hybrid NASA + baseline' : 'Live NASA-calculated')
+                    : 'Awaiting data'}
                 </p>
-                {realTemperatureData.length > 0 && (
-                  <p className="mt-2 text-xs text-slate-500">
-                    {fallbackRegionsActive
-                      ? `⚠️ ${fallbackMethaneRegions} region${fallbackMethaneRegions === 1 ? '' : 's'} are currently using the validated baseline model while Sentinel-5P telemetry recovers.`
-                      : '✅ All monitored regions are currently powered by live NASA telemetry.'}
-                  </p>
+                {riskHistory.length > 1 && (
+                  <div className="mt-2">
+                    <Sparkline data={riskHistory} color="#ef4444" />
+                  </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div className="mt-8">
-          <Tabs defaultValue="satellite" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="satellite" className="flex items-center gap-1">
-                <Satellite className="h-4 w-4" />
-                Precision Mapping
-              </TabsTrigger>
-              <TabsTrigger value="risk" className="flex items-center gap-1">
-                <AlertTriangle className="h-4 w-4" />
-                Risk Zones
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="satellite" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Satellite className="h-5 w-5 text-blue-500" />
-                    Satellite Intelligence
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-slate-900/40 backdrop-blur-md rounded-lg p-6 min-h-[500px] text-green-400 font-mono border border-cyan-500/30">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="text-green-300">🎯 PRECISION MAPPING ACTIVE</div>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${realMethaneCoverage > 0 ? 'bg-green-500 animate-pulse' : 'bg-yellow-400 animate-pulse'}`}></div>
-                        <span className="text-xs">{realMethaneCoverage > 0 ? 'LIVE' : 'FALLBACK'}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="grid gap-4 text-sm">
-                      {precisionZones.length === 0 ? (
-                        <div className="border border-green-500/30 rounded p-3">
-                          <div className="text-yellow-300 font-semibold">No live methane hotspots detected</div>
-                          <p className="text-xs text-green-200 mt-1">
-                            Sentinel-5P methane retrieval is currently unavailable for these regions. The validated fallback model is engaged until the next orbital pass.
-                          </p>
-                        </div>
-                      ) : (
-                        precisionZones.map((zone) => {
-                          const riskLabel = zone.methane.risk === 'high'
-                            ? '🚨 CRITICAL ZONE'
-                            : zone.methane.risk === 'medium'
-                              ? '⚠️ WATCH ZONE'
-                              : '✅ STABLE ZONE';
-                          const riskColor = zone.methane.risk === 'high'
-                            ? 'text-red-400'
-                            : zone.methane.risk === 'medium'
-                              ? 'text-yellow-300'
-                              : 'text-green-300';
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Data Layers Active
+                </CardTitle>
+                <Layers className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : dataLayers}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  SAR, Optical, Climate, Thaw
+                </p>
+                {lastUpdated && (
+                  <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    <span>Updated: {lastUpdated}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Temp Anomaly
+                </CardTitle>
+                <div className="flex items-center gap-1">
+                  {getTrendIcon(tempAnomaly)}
+                  <Thermometer className="h-4 w-4 text-orange-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${tempAnomaly >= 0 ? '+' : ''}${tempAnomaly.toFixed(1)}°C`}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {realTemperatureData.length > 0
+                    ? (fallbackRegionsActive ? 'Hybrid measurements' : 'Real NASA data')
+                    : 'Awaiting data'}
+                </p>
+                {tempHistory.length > 1 && (
+                  <div className="mt-2">
+                    <Sparkline data={tempHistory} color="#f97316" />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  NASA API Status
+                </CardTitle>
+                <Activity className={`h-4 w-4 ${apiStatus?.connected ? 'text-green-500' : 'text-red-500'}`} />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${apiStatus?.connected ? 'text-green-500' : 'text-red-500'}`}>
+                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : (apiStatus?.connected ? 'Connected' : 'Offline')}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {apiStatus?.connected ? `Key: ${apiStatus.apiKey}` : 'Check API config'}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {apiStatus?.connected
+                    ? String(apiStatus.dataFreshness || 'Live')
+                    : 'Using baseline model'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Visualization Section - NEW! */}
+          <div className="mt-8 space-y-6">
+            {/* Temperature Trend Chart */}
+            {!loading && realTemperatureData.length > 0 && (
+              <TemperatureTrendChart data={realTemperatureData} />
+            )}
+
+            {/* Methane Concentration and Risk Distribution */}
+            <div className="grid gap-6 md:grid-cols-2">
+              {!loading && precisionZones.length > 0 && (
+                <MethaneConcentrationChart zones={precisionZones} />
+              )}
+              
+              {!loading && riskZones.length > 0 && (
+                <RiskDistributionChart zones={riskZones} />
+              )}
+            </div>
+          </div>
+
+          {/* Arctic Region Overview with Images */}
+          <div className="mt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Satellite className="h-5 w-5 text-blue-500" />
+                  Arctic Monitoring Regions
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                  {Object.entries(REGION_COORDINATES).map(([key, region]) => {
+                    const regionData = realTemperatureData.find((r) => r.regionId === key);
+                    const riskData = riskZones.find((z) => z.regionId === key);
+                    
+                    return (
+                      <div key={key} className="group relative overflow-hidden rounded-lg border bg-card">
+                        {/* Region Image */}
+                        <div className="relative aspect-video w-full overflow-hidden">
+                          <Image
+                            src={region.image}
+                            alt={region.name}
+                            fill
+                            className="object-cover transition-transform duration-300 group-hover:scale-110"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                          <div className="absolute bottom-2 left-2 right-2">
+                            <h3 className="text-sm font-semibold text-white">{region.name}</h3>
+                          </div>
+                        </div>
+                        
+                        {/* Region Data */}
+                        <div className="p-3 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Location</span>
+                            <span className="font-mono">
+                              {formatCoordinate(region.lat, 'lat')}, {formatCoordinate(region.lon, 'lon')}
+                            </span>
+                          </div>
+                          
+                          {regionData && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">Temp Anomaly</span>
+                              <span className={`font-semibold ${regionData.temperature.anomaly > 15 ? 'text-red-500' : regionData.temperature.anomaly > 10 ? 'text-orange-500' : 'text-yellow-500'}`}>
+                                {regionData.temperature.anomaly >= 0 ? '+' : ''}{regionData.temperature.anomaly.toFixed(1)}°C
+                              </span>
+                            </div>
+                          )}
+                          
+                          {riskData && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">Risk Level</span>
+                              <Badge 
+                                variant={riskData.riskLevel === 'CRITICAL' ? 'destructive' : 'outline'}
+                                className="text-xs"
+                              >
+                                {riskData.riskLevel}
+                              </Badge>
+                            </div>
+                          )}
+                          
+                          <div className="pt-2 border-t text-xs text-muted-foreground">
+                            {region.areaCoverage.squareKm.toLocaleString()} km²
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Data Transparency Section */}
+          <div className="mt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldAlert className="h-5 w-5 text-blue-500" />
+                  Data Transparency & Sources
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-green-600">✅ Real NASA Data</h4>
+                    <ul className="space-y-1 text-sm">
+                      {transparentData?.dataTransparency?.realDataSources?.map((source, idx) => (
+                        <li key={idx}>• {source}</li>
+                      )) || (
+                        <>
+                          <li>• NASA POWER API (Temperature)</li>
+                          <li>• NASA GIBS (Satellite Imagery)</li>
+                        </>
+                      )}
+                    </ul>
+                    <Badge variant="outline" className="border-green-600 text-green-600">
+                      {transparentData?.dataTransparency?.confidence?.temperature || 95}% Confidence
+                    </Badge>
+                    {!fallbackRegionsActive && (
+                      <p className="text-xs text-green-600 mt-1">✅ Live data active</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-orange-600">
+                      {fallbackMethaneRegions > 0 ? '⚠️ Calculated Estimates' : '📊 Methane Data'}
+                    </h4>
+                    <ul className="space-y-1 text-sm">
+                      {realMethaneCoverage > 0 && (
+                        <li>✅ Sentinel-5P TROPOMI ({realMethaneCoverage}/{transparentData?.coverage?.totalRegions || 4} regions)</li>
+                      )}
+                      {fallbackMethaneRegions > 0 && (
+                        <li>⚠️ Temperature-based estimates ({fallbackMethaneRegions} regions)</li>
+                      )}
+                      {transparentData?.dataTransparency?.calculatedEstimates?.map((calc, idx) => (
+                        <li key={idx}>• {calc}</li>
+                      ))}
+                    </ul>
+                    <Badge variant="outline" className="border-orange-600 text-orange-600">
+                      {transparentData?.dataTransparency?.confidence?.methane || 75}% Confidence
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-blue-600">🤖 Algorithmic Analysis</h4>
+                    <ul className="space-y-1 text-sm">
+                      <li>• Risk zone classification</li>
+                      <li>• Threat level assessment</li>
+                      <li>• {riskZones.length} zones analyzed</li>
+                      <li>• {methaneHotspots.length} hotspots detected</li>
+                    </ul>
+                    <Badge variant="outline" className="border-blue-600 text-blue-600">
+                      {transparentData?.dataTransparency?.confidence?.riskLevel || 80}% Confidence
+                    </Badge>
+                  </div>
+                </div>
+                <div className="mt-4 rounded-lg bg-slate-50 p-3 dark:bg-slate-900">
+                  <div className="text-sm text-slate-700 dark:text-slate-300">
+                    <strong>Update Frequency:</strong> {transparentData?.dataTransparency?.updateFrequency || 'Real-time processing'}
+                  </div>
+                  {realTemperatureData.length > 0 && (
+                    <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                      {fallbackRegionsActive ? (
+                        <span className="text-orange-600 font-medium">
+                          ⚠️ {fallbackMethaneRegions} region(s) using temperature-based fallback model. {realMethaneCoverage > 0 ? `${realMethaneCoverage} region(s) using live satellite data.` : 'Awaiting satellite pass.'}
+                        </span>
+                      ) : (
+                        <span className="text-green-600 font-medium">
+                          ✅ All {transparentData?.coverage?.totalRegions || 4} regions powered by live NASA satellite data.
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Detailed Data Tabs */}
+          <div className="mt-8">
+            <Tabs defaultValue="satellite" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="satellite" className="flex items-center gap-1">
+                  <Satellite className="h-4 w-4" />
+                  Satellite Intelligence
+                </TabsTrigger>
+                <TabsTrigger value="sentinel-hub" className="flex items-center gap-1">
+                  <Satellite className="h-4 w-4" />
+                  Sentinel Hub CH₄
+                </TabsTrigger>
+                <TabsTrigger value="risk" className="flex items-center gap-1">
+                  <AlertTriangle className="h-4 w-4" />
+                  Risk Zones Detail
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="satellite" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Satellite className="h-5 w-5 text-blue-500" />
+                      Precision Satellite Data
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {precisionZones.length === 0 ? (
+                      <div className="rounded border border-yellow-300 bg-yellow-50 p-4 dark:bg-yellow-950">
+                        <div className="font-semibold text-yellow-800 dark:text-yellow-200">No precision zones available</div>
+                        <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-300">
+                          Sentinel-5P data temporarily unavailable. Using baseline model.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {precisionZones.map((zone) => {
+                          const riskColor = zone.methane.risk === 'high' ? 'text-red-500' :
+                                          zone.methane.risk === 'medium' ? 'text-yellow-500' :
+                                          'text-green-500';
+                          
                           return (
-                            <div key={zone.zoneId} className="border border-green-500/30 rounded p-3">
-                              <div className={`${riskColor} font-bold`}>{riskLabel} - {zone.regionId.toUpperCase()}</div>
-                              <div>📍 {zone.label}</div>
-                              <div>📐 {formatCoordinate(zone.coordinates.lat, 'lat')}, {formatCoordinate(zone.coordinates.lon, 'lon')} ({zone.coordinates.precision})</div>
-                              <div>🌡️ Temperature: +{Number(zone.temperature?.anomaly ?? 0).toFixed(1)}°C anomaly</div>
-                              <div>
-                                🔥 Methane: {zone.methane.concentration.toLocaleString()} {zone.methane.unit}{' '}
-                                ({zone.methane.dataSource.type === 'REAL_NASA' ? 'NASA Sentinel-5P' : 'Fallback model'})
+                            <div key={zone.zoneId} className="rounded border p-3">
+                              <div className={`font-bold ${riskColor}`}>
+                                {zone.regionId.toUpperCase()} - {zone.label}
                               </div>
-                              <div className="text-xs text-green-500 mt-1">
-                                Last Update: {formatTimestamp(zone.methane.lastObservation)}
+                              <div className="mt-2 grid gap-1 text-sm">
+                                <div>📍 {formatCoordinate(zone.coordinates.lat, 'lat')}, {formatCoordinate(zone.coordinates.lon, 'lon')}</div>
+                                {zone.areaCoverage && (
+                                  <div className="text-xs text-muted-foreground">
+                                    📏 {zone.areaCoverage.squareKm.toLocaleString()} km² ({zone.areaCoverage.squareMiles.toLocaleString()} sq mi)
+                                  </div>
+                                )}
+                                <div>🌡️ Temperature: {zone.temperature?.anomaly >= 0 ? '+' : ''}{Number(zone.temperature?.anomaly ?? 0).toFixed(1)}°C anomaly</div>
+                                <div>🔥 Methane: {zone.methane.concentration.toLocaleString()} {zone.methane.unit}</div>
+                                {zone.areaCoverage && (
+                                  <div className="mt-1 text-xs italic text-muted-foreground">
+                                    {zone.areaCoverage.description}
+                                  </div>
+                                )}
+                                <div className="text-xs text-muted-foreground">
+                                  Last Update: {formatTimestamp(zone.methane.lastObservation)}
+                                </div>
                               </div>
                               {zone.usingFallback && (
-                                <div className="text-xs text-yellow-300 mt-1">
-                                  Fallback reason: {zone.fallbackReason || 'Live Sentinel-5P methane measurement unavailable'}
+                                <div className="mt-2 text-xs text-yellow-600 dark:text-yellow-400">
+                                  Using fallback: {zone.fallbackReason || 'Live data unavailable'}
                                 </div>
                               )}
                             </div>
                           );
-                        })
-                      )}
-                    </div>
-                    
-                    <div className="mt-4 pt-4 border-t border-green-500/30">
-                      <div className="grid grid-cols-2 gap-4 text-xs">
-                        <div>
-                          <div className="text-green-400">🛰️ ACTIVE SATELLITES</div>
-                          <div>• Sentinel-5P TROPOMI</div>
-                          <div>• MODIS Terra/Aqua</div>
-                          <div>• Sentinel-1 SAR</div>
-                          <div>• NASA VIIRS</div>
-                        </div>
-                        <div>
-                          <div className="text-green-400">🎯 PRECISION SPECS</div>
-                          <div>• Coordinate: ±10 meters</div>
-                          <div>• Temperature: ±0.1°C</div>
-                          <div>• Methane: ±5 PPB</div>
-                          <div>• Update: 30-45 seconds</div>
-                        </div>
+                        })}
                       </div>
-                    </div>
-                    
-                    <div className="mt-4 text-center">
-                      <Badge className={`bg-green-500/10 backdrop-blur-sm border-green-500/50 ${realMethaneCoverage > 0 ? 'text-green-400' : 'text-yellow-200'}`}>
-                        {realMethaneCoverage > 0
-                          ? `${realMethaneCoverage}/${precisionZones.length || 4} regions streaming Sentinel-5P methane`
-                          : 'Sentinel-5P methane offline — fallback estimates active'}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="risk" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-red-500" />
-                    Thaw & Methane Risk Map - Military Grade
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div className="bg-red-50 p-3 rounded border border-red-200">
-                        <div className="font-medium text-red-700">Critical Zones</div>
-                        <div className="text-2xl font-bold text-red-600">4</div>
-                        <div className="text-xs text-red-500">All regions affected</div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="sentinel-hub" className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  {Object.entries(REGION_COORDINATES).map(([key, region]) => (
+                    <SentinelHubMethaneLayer
+                      key={key}
+                      regionId={key}
+                      bbox={region.bbox}
+                      centerLat={region.lat}
+                      centerLon={region.lon}
+                    />
+                  ))}
+                </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Satellite className="h-5 w-5 text-blue-500" />
+                      About Sentinel Hub Integration
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-muted-foreground">
+                    <p>
+                      <strong>Sentinel-5P TROPOMI:</strong> The TROPOspheric Monitoring Instrument provides daily global methane (CH₄) concentration measurements.
+                    </p>
+                    <p>
+                      <strong>Data Characteristics:</strong> 7×7 km spatial resolution, ~100-minute orbital repeat cycle. Data availability varies by latitude and cloud cover.
+                    </p>
+                    <p>
+                      <strong>Arctic Limitations:</strong> At high latitudes (≥65°N) in October, data may be sparse due to solar zenith angle constraints, cloud cover, and polar night conditions.
+                    </p>
+                    <p>
+                      <strong>Complementary to NASA Earthdata:</strong> This visualization layer complements our NASA TROPOMI granule retrieval, providing visual context for methane concentrations.
+                    </p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="risk" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-red-500" />
+                      Detailed Risk Assessment
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {riskZones.length === 0 ? (
+                      <div className="rounded border border-slate-300 bg-slate-50 p-4 dark:bg-slate-900">
+                        <div className="font-semibold">No risk zones assessed</div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Awaiting NASA data for risk assessment.
+                        </p>
                       </div>
-                      <div className="bg-orange-50 p-3 rounded border border-orange-200">
-                        <div className="font-medium text-orange-700">Avg Methane</div>
-                        <div className="text-2xl font-bold text-orange-600">2,112</div>
-                        <div className="text-xs text-orange-500">PPB concentration</div>
-                      </div>
-                      <div className="bg-blue-50 p-3 rounded border border-blue-200">
-                        <div className="font-medium text-blue-700">Monitored Area</div>
-                        <div className="text-2xl font-bold text-blue-600">4,725</div>
-                        <div className="text-xs text-blue-500">km² coverage</div>
-                      </div>
-                      <div className="bg-green-50 p-3 rounded border border-green-200">
-                        <div className="font-medium text-green-700">API Status</div>
-                        <div className="text-sm font-bold text-green-600">CONNECTED</div>
-                        <div className="text-xs text-green-500">Real-time updates</div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-slate-500/10 backdrop-blur-sm rounded-lg p-6 border border-slate-400/30">
-                      <h3 className="font-semibold mb-4 flex items-center gap-2">
-                        <Target className="h-4 w-4" />
-                        Active Risk Zones with Military-Grade Precision
-                      </h3>
-                      
+                    ) : (
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-white rounded border-l-4 border-red-500">
-                          <div>
-                            <div className="font-medium">Siberian Tundra - Yamal Peninsula</div>
-                            <div className="text-sm text-muted-foreground">70.2631°N, 68.7970°E</div>
-                          </div>
-                          <Badge className="bg-red-100 text-red-800 border-red-300">CRITICAL</Badge>
-                        </div>
-                        
-                        <div className="flex items-center justify-between p-3 bg-white rounded border-l-4 border-red-500">
-                          <div>
-                            <div className="font-medium">Alaskan North Slope - Prudhoe Bay</div>
-                            <div className="text-sm text-muted-foreground">70.2548°N, 148.5157°W</div>
-                          </div>
-                          <Badge className="bg-red-100 text-red-800 border-red-300">CRITICAL</Badge>
-                        </div>
-                        
-                        <div className="flex items-center justify-between p-3 bg-white rounded border-l-4 border-red-500">
-                          <div>
-                            <div className="font-medium">Canadian Arctic - Banks Island</div>
-                            <div className="text-sm text-muted-foreground">73.6544°N, 120.1377°W</div>
-                          </div>
-                          <Badge className="bg-red-100 text-red-800 border-red-300">CRITICAL</Badge>
-                        </div>
-                        
-                        <div className="flex items-center justify-between p-3 bg-white rounded border-l-4 border-red-500">
-                          <div>
-                            <div className="font-medium">Greenland Ice Sheet - Russell Glacier</div>
-                            <div className="text-sm text-muted-foreground">67.0997°N, 50.6997°W</div>
-                          </div>
-                          <Badge className="bg-red-100 text-red-800 border-red-300">CRITICAL</Badge>
-                        </div>
+                        {riskZones.map((zone) => {
+                          const borderColor = zone.riskLevel === 'CRITICAL' ? 'border-red-500' :
+                                            zone.riskLevel === 'HIGH' ? 'border-orange-500' :
+                                            zone.riskLevel === 'MEDIUM' ? 'border-yellow-500' :
+                                            'border-green-500';
+                          
+                          const badgeVariant = zone.riskLevel === 'CRITICAL' ? 'destructive' : 'outline';
+                          
+                          return (
+                            <div key={zone.regionId} className={`flex items-center justify-between rounded border-l-4 bg-white p-3 dark:bg-slate-900 ${borderColor}`}>
+                              <div>
+                                <div className="font-medium">{zone.regionName}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {formatCoordinate(zone.coordinates.lat, 'lat')}, {formatCoordinate(zone.coordinates.lon, 'lon')}
+                                </div>
+                                {zone.areaCoverage && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    📏 Coverage: {zone.areaCoverage.squareKm.toLocaleString()} km² ({zone.areaCoverage.squareMiles.toLocaleString()} sq mi)
+                                  </div>
+                                )}
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  Score: {zone.riskScore}/100 | Temp: {zone.factors.temperatureAnomaly >= 0 ? '+' : ''}{zone.factors.temperatureAnomaly.toFixed(1)}°C | CH₄: {zone.factors.estimatedMethane.toFixed(0)} PPB
+                                </div>
+                                {zone.areaCoverage && (
+                                  <div className="mt-1 text-xs italic text-muted-foreground">
+                                    {zone.areaCoverage.description}
+                                  </div>
+                                )}
+                              </div>
+                              <Badge variant={badgeVariant}>{zone.riskLevel}</Badge>
+                            </div>
+                          );
+                        })}
                       </div>
-                      
-                      <div className="mt-4 p-3 bg-blue-500/10 backdrop-blur-sm rounded border border-blue-400/30">
-                        <div className="text-sm font-medium text-blue-700 mb-1">Real-Time Data Sources</div>
-                        <div className="text-xs text-blue-600">
-                          NASA POWER API • Sentinel-5P TROPOMI • MODIS Terra/Aqua • NASA VIIRS • Updated every 30 seconds
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </main>
-    </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+          </>
+          )}
+        </main>
+      </div>
+    </>
   );
 }
