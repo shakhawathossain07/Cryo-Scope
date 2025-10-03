@@ -6,14 +6,23 @@
 
 import OpenAI from 'openai';
 
-if (!process.env.OPENROUTER_API_KEY) {
-  throw new Error('OPENROUTER_API_KEY environment variable is not set');
-}
+// Initialize OpenAI client lazily to avoid build-time errors
+let openai: OpenAI | null = null;
 
-const openai = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
+function getOpenAIClient(): OpenAI {
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY environment variable is not set. Please configure it in your deployment settings.');
+  }
+  
+  if (!openai) {
+    openai = new OpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: process.env.OPENROUTER_API_KEY,
+    });
+  }
+  
+  return openai;
+}
 
 export interface DashboardData {
   regionTemperatureData: Array<{
@@ -377,7 +386,8 @@ CRITICAL REQUIREMENTS FOR NASA/DATA SCIENCE ACCEPTANCE:
 
 Generate the complete, publication-quality report now.`;
 
-  const completion = await openai.chat.completions.create({
+  const client = getOpenAIClient();
+  const completion = await client.chat.completions.create({
     model: 'google/gemini-2.0-flash-exp:free',
     messages: [
       {
@@ -511,7 +521,8 @@ Include:
 
 Be concise, scientific, and actionable.`;
 
-  const completion = await openai.chat.completions.create({
+  const client = getOpenAIClient();
+  const completion = await client.chat.completions.create({
     model: 'google/gemini-2.0-flash-exp:free',
     messages: [
       {
