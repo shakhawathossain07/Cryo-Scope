@@ -2,11 +2,10 @@
 
 import { analyzePermafrostTrend } from '@/ai/flows/analyze-permafrost-trend';
 import { z } from 'zod';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { SupabaseService, PermafrostData } from '@/lib/supabase';
 
-type FormSchema = z.infer<typeof formSchemaDefinition>;
-
-const formSchemaDefinition = z.object({
+const formSchema = z.object({
   regionName: z.string(),
   historicalClimateData: z.string().optional(),
   sarDataUri: z.string(),
@@ -16,7 +15,7 @@ const formSchemaDefinition = z.object({
 // A base64 encoded 1x1 transparent PNG
 const FAKE_IMAGE_DATA_URI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
-export async function analyzePermafrostTrendAction(input: FormSchema) {
+export async function analyzePermafrostTrendAction(input: z.infer<typeof formSchema>) {
   try {
     const result = await analyzePermafrostTrend({
       regionName: input.regionName,

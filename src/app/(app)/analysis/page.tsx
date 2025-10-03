@@ -129,7 +129,7 @@ export default function AnalysisPage() {
                     <FormField
                       control={form.control}
                       name="sarData"
-                      render={() => (
+                      render={({ field }) => (
                         <FormItem>
                           <FormLabel>SAR Data</FormLabel>
                           <FormControl>
@@ -142,7 +142,7 @@ export default function AnalysisPage() {
                      <FormField
                       control={form.control}
                       name="opticalData"
-                      render={() => (
+                      render={({ field }) => (
                         <FormItem>
                           <FormLabel>Optical Data (Optional)</FormLabel>
                           <FormControl>

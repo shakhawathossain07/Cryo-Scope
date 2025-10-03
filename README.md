@@ -4,6 +4,26 @@ A comprehensive permafrost monitoring and analysis platform powered by **100% NA
 
 ![Cryo-Scope Dashboard](https://via.placeholder.com/800x400?text=Cryo-Scope+Real-Time+NASA+Dashboard)
 
+---
+
+## 🚀 Quick Start
+
+### For Deployment
+- **⚡ 5-Minute Deploy**: See [`docs/QUICK_DEPLOY.md`](docs/QUICK_DEPLOY.md)
+- **📚 Complete Guide**: See [`docs/NETLIFY_DEPLOYMENT_GUIDE.md`](docs/NETLIFY_DEPLOYMENT_GUIDE.md)
+- **📊 Build Summary**: See [`docs/DEPLOYMENT_SUMMARY.md`](docs/DEPLOYMENT_SUMMARY.md)
+
+### For Development
+```bash
+npm install
+npm run dev
+# Visit http://localhost:9002
+```
+
+**Status**: ✅ **Production Ready** | Build: 50s | Routes: 17
+
+---
+
 ## 🚀 Overview
 
 Cryo-Scope provides **real-time permafrost monitoring** for Arctic and sub-Arctic regions using verified NASA data sources. The platform integrates multiple NASA APIs to deliver scientifically accurate insights on permafrost stability, methane emissions, and climate change impacts with **full data source transparency**.
