@@ -6,12 +6,16 @@ const nextConfig: NextConfig = {
     serverActions: {
       allowedOrigins: ['localhost:9002', '*.netlify.app', '*.supabase.co'],
     },
+    optimizeCss: true,
+    optimizePackageImports: ['lucide-react', 'recharts', '@radix-ui/react-icons'],
   },
   typescript: {
-    ignoreBuildErrors: true,
+    // Only ignore during builds for deployment - should be fixed in development
+    ignoreBuildErrors: process.env.NODE_ENV === 'production',
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    // Only ignore during builds for deployment - should be fixed in development
+    ignoreDuringBuilds: process.env.NODE_ENV === 'production',
   },
   images: {
     unoptimized: true,
@@ -36,6 +40,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Performance optimizations
+  poweredByHeader: false,
+  compress: true,
+  reactStrictMode: true,
+  swcMinify: true,
 };
 
 export default nextConfig;

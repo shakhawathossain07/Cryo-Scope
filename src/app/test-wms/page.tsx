@@ -66,9 +66,10 @@ export default function TestWMSPage() {
       setImageUrl(url);
       addLog('✅ Image loaded successfully!');
 
-    } catch (err: any) {
-      addLog(`❌ Fetch error: ${err.message}`);
-      setError(err.message);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      addLog(`❌ Fetch error: ${errorMessage}`);
+      setError(errorMessage);
     }
 
     setLoading(false);

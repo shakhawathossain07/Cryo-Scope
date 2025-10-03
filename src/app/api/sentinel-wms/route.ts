@@ -101,8 +101,6 @@ export async function GET(request: NextRequest) {
     const crs = getParam('CRS') || 'EPSG:3857';
     const time = getParam('TIME') || `${new Date().toISOString().split('T')[0]}/${new Date().toISOString().split('T')[0]}`;
     const transparent = getParam('TRANSPARENT') || 'true';
-    const styles = getParam('STYLES') || '';
-    const tiled = getParam('TILED');
 
     console.log(`📍 WMS Request: BBOX=${bbox}, LAYERS=${layers}, TIME=${time}`);
 

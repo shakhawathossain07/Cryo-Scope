@@ -9,12 +9,17 @@ import {
   SidebarContent,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/icons';
-import { LayoutDashboard, FileText } from 'lucide-react';
+import { LayoutDashboard, FileText, Map } from 'lucide-react';
 import Link from 'next/link';
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/reporting', label: 'Risk Reporting', icon: FileText },
+          {
+          href: '/satellite-map',
+          label: 'Satellite Map',
+          icon: Map,
+        },
 ];
 
 export function AppSidebar() {
