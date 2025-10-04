@@ -9,6 +9,9 @@ Turning raw Earth observation data into transparent, science‑grade climate int
 
 </div>
 
+<img width="959" height="415" alt="1" src="https://github.com/user-attachments/assets/ade3d0dc-8eaa-4817-9a42-ea545ebef1a6" />
+
+
 ---
 
 ## 📌 Table of Contents
@@ -39,6 +42,8 @@ Permafrost thaw is a high‑impact climate tipping element. When it destabilizes
 
 **Mission:** Reduce research latency & increase transparency in Arctic climate intelligence through open, reproducible tooling.
 
+<img width="818" height="377" alt="2" src="https://github.com/user-attachments/assets/8a534d05-5fd1-4eca-890d-12a6b29a3fd1" />
+
 ---
 
 ## ✨ Key Capabilities
@@ -53,10 +58,12 @@ Permafrost thaw is a high‑impact climate tipping element. When it destabilizes
 | AI‑Assisted Narrative | OPTIONAL: Executive summaries (metrics remain deterministic) |
 | Extensibility | Modular layer pipeline—future: InSAR, albedo, hydrology, carbon flux |
 
+<img width="807" height="353" alt="3" src="https://github.com/user-attachments/assets/2308dee3-a971-4fe1-9604-57a3dc12d646" />
+
 ---
 
 ## 🔗 Live Demo & Quick Links
-> (Add real links when deployed)
+> https://cryoscope.netlify.app/
 
 | Resource | Link |
 |----------|------|
@@ -68,6 +75,8 @@ Permafrost thaw is a high‑impact climate tipping element. When it destabilizes
 | Optimization Checklist | `docs/OPTIMIZATION_CHECKLIST.md` |
 | Env Vars Setup | `docs/NETLIFY_ENV_VARS_SETUP.md` |
 
+<img width="796" height="393" alt="4" src="https://github.com/user-attachments/assets/05669255-1a43-434b-8e11-2b58f11adb30" />
+
 ---
 
 ## 🗺️ Monitored Regions
@@ -77,6 +86,9 @@ Permafrost thaw is a high‑impact climate tipping element. When it destabilizes
 | Alaska North Slope | Prudhoe Bay, Teshekpuk | Rapid warming zone |
 | Canadian Archipelago | Banks Island, Resolute | Seasonal variability |
 | Greenland Margin | Kangerlussuaq, Ilulissat | Ice–permafrost coupling |
+
+<img width="726" height="408" alt="5" src="https://github.com/user-attachments/assets/c07294ec-ca79-43ec-a43a-1d63d958936b" />
+
 
 ---
 
@@ -92,6 +104,8 @@ Permafrost thaw is a high‑impact climate tipping element. When it destabilizes
 
 **Design Principles**
 *Deterministic metrics • Transparent formulas • Clear uncertainty • Reproducibility over black box.*
+
+<img width="952" height="416" alt="6" src="https://github.com/user-attachments/assets/f972639a-1256-44a0-b9bc-2aa204801524" />
 
 ---
 
@@ -205,7 +219,6 @@ All metrics list `source`, `retrieval timestamp`, and `confidence`. AI never mod
 | Code Scaffolding | Minor boilerplate suggestions | Manual audit & edits |
 | No Synthetic Data | — | Explicit runtime guards |
 
-No AI images/video currently used. Future AI media (if any) will include visible watermarks.
 
 ---
 
@@ -252,7 +265,7 @@ We welcome scientific scrutiny, extensions, and performance improvements.
 1. Fork & branch (`feature/my-improvement`)
 2. Ensure build passes locally (`npm run build`)
 3. Open a PR with: motivation, methodology notes, validation evidence
-4. For scientific model changes include: assumptions, uncertainty impacts
+4. For scientific model changes, include: assumptions, uncertainty impacts
 
 > See forthcoming `CONTRIBUTING.md` (add if missing) & open an Issue for major proposals.
 
@@ -288,3 +301,9 @@ MIT — see [LICENSE](LICENSE). Please retain data source attributions.
 
 <div align="center"><strong>Built with integrity for planetary resilience.</strong><br/>Real NASA data • Open Science • Reproducible Analytics</div>
 
+LEAD Developer: Md. Shakhawat Hossain
+                Department of ECE | North South University
+
+**Built with ❤️ With VS Code Agent (Claude Sonnet 4.5)**
+
+*Real NASA data • Scientific accuracy • Open source*
