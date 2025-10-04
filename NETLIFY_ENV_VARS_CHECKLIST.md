@@ -8,27 +8,7 @@ Copy and paste these environment variables into your Netlify dashboard:
 
 ---
 
-## 📋 Required Variables (Copy-Paste Ready)
 
-### 1. Supabase Configuration (CRITICAL ⚠️)
-
-```
-Variable: NEXT_PUBLIC_SUPABASE_URL
-Value: https://siaxwbhyahlshwqzvafe.supabase.co
-Scopes: ✅ All scopes
-```
-
-```
-Variable: NEXT_PUBLIC_SUPABASE_ANON_KEY
-Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpYXh3Ymh5YWhsc2h3cXp2YWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNjYwMzAsImV4cCI6MjA3NDc0MjAzMH0.PfjNCyUdsK7oqMeAPNF60DyPQyCeZGIj8aQe5tRQTOA
-Scopes: ✅ All scopes
-```
-
-```
-Variable: SUPABASE_SERVICE_ROLE_KEY
-Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpYXh3Ymh5YWhsc2h3cXp2YWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTE2NjAzMCwiZXhwIjoyMDc0NzQyMDMwfQ.ALmzgaUPYmFYdSoY6Gmk_tVU0ff5cLvv6gQCGjwRlqY
-Scopes: ✅ All scopes
-⚠️ MOST CRITICAL - Required for API key retrieval from Supabase
 ```
 
 ---
