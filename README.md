@@ -1,398 +1,290 @@
-# Cryo-Scope 🌍
+<div align="center">
 
-A comprehensive permafrost monitoring and analysis platform powered by **100% NASA satellite data** and scientific methane correlation models.
+# Cryo‑Scope 🌍  
+**Real‑Time Arctic Permafrost & Methane Risk Intelligence Platform**  
+Turning raw Earth observation data into transparent, science‑grade climate intelligence.
 
+[![Status](https://img.shields.io/badge/status-production-green?style=flat-square)](#) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE) [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square)](#) [![NASA Data](https://img.shields.io/badge/Data-NASA%20POWER-orange?style=flat-square)](#) [![PDF Reports](https://img.shields.io/badge/Feature-NASA%20Style%20Reports-purple?style=flat-square)](#)  
+*Production Build:* <strong>✔ 50s</strong> · *Routes:* <strong>17</strong> · *Bundle Shared JS:* <strong>102 kB</strong>
 
-
----
-
-## 🚀 Quick Start
-
-### For Deployment
-- **⚡ 5-Minute Deploy**: See [`docs/QUICK_DEPLOY.md`](docs/QUICK_DEPLOY.md)
-- **📚 Complete Guide**: See [`docs/NETLIFY_DEPLOYMENT_GUIDE.md`](docs/NETLIFY_DEPLOYMENT_GUIDE.md)
-- **📊 Build Summary**: See [`docs/DEPLOYMENT_SUMMARY.md`](docs/DEPLOYMENT_SUMMARY.md)
-
-### For Development
-```bash
-npm install
-npm run dev
-# Visit http://localhost:9002
-```
-
-**Status**: ✅ **Production Ready** | Build: 50s | Routes: 17
+</div>
 
 ---
 
-## 🚀 Overview
+## 📌 Table of Contents
+1. [Why Cryo‑Scope](#-why-cryo-scope)
+2. [Key Capabilities](#-key-capabilities)
+3. [Live Demo & Quick Links](#-live-demo--quick-links)
+4. [Monitored Regions](#-monitored-regions)
+5. [Scientific Methodology](#-scientific-methodology)
+6. [Report Generation Engine](#-report-generation-engine)
+7. [Architecture Overview](#-architecture-overview)
+8. [Installation & Setup](#-installation--setup)
+9. [Environment Variables](#-environment-variables)
+10. [API Endpoints](#-api-endpoints)
+11. [Data Sources & Provenance](#-data-sources--provenance)
+12. [AI Usage Disclosure](#-ai-usage-disclosure)
+13. [Performance & Optimization](#-performance--optimization)
+14. [Security & Integrity](#-security--integrity)
+15. [Roadmap](#-roadmap)
+16. [Contributing](#-contributing)
+17. [Citation](#-citation)
+18. [License](#-license)
+19. [Acknowledgements](#-acknowledgements)
 
-Cryo-Scope provides **real-time permafrost monitoring** for Arctic and sub-Arctic regions using verified NASA data sources. The platform integrates multiple NASA APIs to deliver scientifically accurate insights on permafrost stability, methane emissions, and climate change impacts with **full data source transparency**.
+---
 
-### ✨ Key Features
+## 🧭 Why Cryo‑Scope
+Permafrost thaw is a high‑impact climate tipping element. When it destabilizes, **carbon and methane releases accelerate global warming**. Existing dashboards often treat variables in isolation. *Cryo‑Scope* fuses **temperature anomalies + methane atmospheric context + per‑region risk modeling** and automates *NASA‑style scientific PDF reporting* for immediate decision support.
 
-- **🌍 Interactive 3D Google Earth**: Award-winning immersive Arctic exploration with real-time satellite imagery
-- **🛰️ Real-Time NASA Integration**: Live temperature data from NASA POWER API with Earthdata authentication
-- **🔬 Scientific Methodology**: Peer-reviewed methane-temperature correlation models (88% confidence)
-- **📍 Interactive Mapping**: Dynamic visualization with NASA GIBS satellite tiles and Leaflet
-- **🎯 Hotspot Detection**: AI-powered methane emission hotspot identification using real NASA data
-- **📊 Risk Assessment**: Automated permafrost stability analysis with transparent confidence ratings
-- **⏱️ Time Animation**: Explore temporal changes with monthly data playback controls
-- **💾 Data Export**: Download reports and datasets backed by NASA observations
+**Mission:** Reduce research latency & increase transparency in Arctic climate intelligence through open, reproducible tooling.
 
-### 🌡️ NASA Data Integration Status
+---
 
-**✅ NASA POWER API** - **ACTIVE**
-- Real-time temperature anomaly detection across Arctic regions
-- Daily updates with historical baseline comparisons
-- Scientific correlation models for methane concentration estimation
-- Coverage: Arctic regions (Siberia, Alaska, Canada, Greenland)
+## ✨ Key Capabilities
+| Category | Highlights |
+|----------|-----------|
+| Real‑Time Monitoring | NASA POWER reanalysis temperature anomalies (z‑scores, >3σ extreme flagging) |
+| Methane Context | Sentinel‑5P (TROPOMI) CH₄ visualization via Processing API (Copernicus/Sentinel Hub) |
+| Risk Indexing | Composite per‑region permafrost destabilization risk tiers (Low → Extreme) |
+| Scientific Reports | One‑click NASA/TM style PDF (figures, tables, methodology, citations) |
+| Multi‑Region Comparison | Greenland • Alaska • Siberia • Canadian Archipelago side‑by‑side |
+| Interactive Mapping | High‑resolution remote layers + anomaly overlays + temporal windowing |
+| AI‑Assisted Narrative | OPTIONAL: Executive summaries (metrics remain deterministic) |
+| Extensibility | Modular layer pipeline—future: InSAR, albedo, hydrology, carbon flux |
 
-**✅ NASA Earthdata Authentication** - **CONFIGURED**
-- Secure server-side bearer token authentication
-- Ready for enhanced Sentinel-5P direct integration
-- Follows NASA's recommended authentication patterns
+---
 
-**✅ NASA GIBS Satellite Imagery** - **ACTIVE**
-- High-resolution satellite tile layers
-- Real-time Arctic region visualization
-- Integrated with interactive mapping interface
+## 🔗 Live Demo & Quick Links
+> (Add real links when deployed)
 
-**🔄 NASA CMR API** - **FRAMEWORK READY**
-- Collection search infrastructure implemented
-- Prepared for future Sentinel-5P granule access
-- Metadata repository integration capabilities
+| Resource | Link |
+|----------|------|
+| Production App | https://your-netlify-site.netlify.app |
+| Source Code | https://github.com/shakhawathossain07/Cryo-Scope |
+| Quick Deploy Guide | `docs/QUICK_DEPLOY.md` |
+| Netlify Deployment (Full) | `docs/NETLIFY_DEPLOYMENT_GUIDE.md` |
+| Build / Optimization Summary | `docs/DEPLOYMENT_SUMMARY.md` |
+| Optimization Checklist | `docs/OPTIMIZATION_CHECKLIST.md` |
+| Env Vars Setup | `docs/NETLIFY_ENV_VARS_SETUP.md` |
 
-### 📍 Monitored Regions
+---
 
-- **Siberian Tundra** (70°N, 110°E) - Yamal Peninsula, Lena River Delta
-- **Alaskan North Slope** (70.2°N, 148.5°W) - Prudhoe Bay, Teshekpuk Lake  
-- **Canadian Arctic Archipelago** (74°N, 95°W) - Banks Island, Resolute
-- **Greenland Ice Sheet Margin** (67°N, 50°W) - Kangerlussuaq, Ilulissat
+## 🗺️ Monitored Regions
+| Region | Focus Areas | Notes |
+|--------|-------------|-------|
+| Siberia | Yamal Peninsula, Lena Delta | Large carbon reservoir |
+| Alaska North Slope | Prudhoe Bay, Teshekpuk | Rapid warming zone |
+| Canadian Archipelago | Banks Island, Resolute | Seasonal variability |
+| Greenland Margin | Kangerlussuaq, Ilulissat | Ice–permafrost coupling |
 
-## 🔬 Scientific Methodology
+---
 
-### Methane Estimation Approach
+## 🧪 Scientific Methodology
+**Pipeline Phases**
+1. Baseline Acquisition → NASA POWER multi‑decadal climatology (μ, σ)
+2. Real‑Time Fetch → Current day T2M, T2M_MAX, T2M_MIN
+3. Anomaly Calculation → z = (T_current – μ)/σ (flag >3σ as *Extreme Anomaly*)
+4. Methane Layer Integration → Sentinel‑5P CH₄ raster sampling & normalization
+5. Composite Risk Scoring → f(thermal z, methane deviation percentile, persistence, sensitivity weight)
+6. Uncertainty Layering → Confidence classification (High / Moderate / Caution)
+7. Narrative Synthesis (OPTIONAL) → AI summary with provenance boundary
 
-Our methane concentration estimates use **scientifically validated correlations** between temperature anomalies and methane emissions:
+**Design Principles**
+*Deterministic metrics • Transparent formulas • Clear uncertainty • Reproducibility over black box.*
 
-1. **Temperature Anomaly Detection**
-   - Real NASA POWER temperature data vs. historical baselines
-   - Statistical significance testing for anomaly identification
-   - Seasonal adjustment algorithms
+---
 
-2. **Methane-Temperature Correlation**
-   - Based on peer-reviewed Arctic research literature
-   - Temperature-dependent emission rate calculations
-   - Confidence intervals and uncertainty quantification
+## 🧾 Report Generation Engine
+| Section | Contents |
+|---------|----------|
+| Title & Abstract | Auto‑filled metadata + timestamp |
+| Executive Summary | AI‑assisted (optional) | 
+| Regional Metrics | Temperature anomalies, methane context |
+| Figures | 4+ publication‑quality charts (300 DPI) |
+| Tables | Risk matrix, anomaly ranking, data provenance |
+| Methodology | Statistical formulas, data lineage |
+| Limitations | Atmospheric transport, temporal resolution |
+| References | NASA & peer‑reviewed literature |
 
-3. **Regional Scaling**
-   - Permafrost type classification (continuous, discontinuous, sporadic)
-   - Vegetation and soil organic carbon adjustments
-   - Topographic and hydrological corrections
+Exported via `jsPDF + html2canvas + autotable` with layout tuned to NASA Technical Memorandum style.
 
-4. **Quality Assurance**
-   - 88% confidence rating for methane estimates
-   - Transparent data source labeling
-   - Cross-validation with historical observations
+---
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Node.js** 18.18+ or 20+
-- **npm** 9+ 
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/your-username/cryo-scope.git
-cd cryo-scope
+## 🏗 Architecture Overview
+```
+┌──────────────────────────┐
+│        Client (UI)       │  Next.js (App Router), React 18, Tailwind, Recharts
+└────────────┬─────────────┘
+             │ fetch / actions
+┌────────────▼─────────────┐
+│  API Routes / Functions  │  /api/transparent-dashboard, /api/generate-report
+└────────────┬─────────────┘
+             │ orchestrate
+┌────────────▼─────────────┐
+│  Data & Processing Layer │  Anomaly calc, methane fusion, risk model
+└────────────┬─────────────┘
+             │ external fetch
+┌────────────▼─────────────┐
+│  NASA POWER  | Sentinel  │  External EO & climate services
+│  GIBS / CMR  | Copernicus │
+└────────────┬─────────────┘
+             │ outputs
+┌────────────▼─────────────┐
+│  PDF Engine & AI Assist  │  Deterministic metrics + optional narrative
+└──────────────────────────┘
 ```
 
-### 2. Install dependencies
+---
 
+## 🛠 Installation & Setup
 ```bash
+git clone https://github.com/shakhawathossain07/Cryo-Scope.git
+cd Cryo-Scope
 npm install
+cp .env.example .env.local   # Fill in required values
+npm run dev                  # http://localhost:9002
 ```
 
-### 3. Set up environment variables
-
-Create a `.env.local` file in the root directory:
-
-```env
-# NASA API Configuration
-NEXT_PUBLIC_NASA_API_KEY=your_nasa_api_key_here
-# Get your key from: https://api.nasa.gov
-# Without a key, the app uses 'DEMO_KEY' (limited to 1000 requests/hour)
-
-# NASA Earthdata Authentication (server-side only)
-EARTHDATA_BEARER_TOKEN=your_earthdata_token_here
-EARTHDATA_CLIENT_ID=cryo-scope-app
-# Generate a personal bearer token at https://urs.earthdata.nasa.gov
-# Rotate regularly for security
-# Keep these secrets server-side only (no NEXT_PUBLIC_ prefix)
-
-# Optional: Enhanced mapping features
-NEXT_PUBLIC_MAPBOX_TOKEN=your_mapbox_token_here
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_javascript_api_key
-
-# AI Features (Genkit)
-GOOGLE_GENAI_API_KEY=your_google_api_key_here
-```
-
-### 4. Run the application
-
+**Production Build**
 ```bash
-npm run dev
+npm run build
+npm start
 ```
 
-Open [http://localhost:9002](http://localhost:9002) to view the dashboard.
+> See `docs/NETLIFY_DEPLOYMENT_GUIDE.md` for platform specifics (memory, image domains, headers, caching).
 
-## 🏗️ Technical Architecture
+---
 
-### Tech Stack
+## 🔐 Environment Variables
+| Variable | Scope | Required | Description |
+|----------|-------|----------|-------------|
+| OPENROUTER_API_KEY | Server | Optional* | AI narrative (lazy loaded) |
+| SENTINEL_HUB_CLIENT_ID / SECRET | Server | Yes (methane) | Copernicus OAuth |
+| SENTINEL_HUB_INSTANCE_ID | Server | Yes | CH₄ visualization config |
+| NEXT_PUBLIC_SENTINEL_HUB_INSTANCE_ID | Client | Yes | Mirror for map overlays |
+| NEXT_PUBLIC_NASA_API_KEY | Client | Recommended | Higher request quota |
+| EARTHDATA_BEARER_TOKEN | Server | Future | Direct Earthdata resources |
+| NEXT_PUBLIC_SUPABASE_URL / ANON_KEY | Client | Optional | Persistence / auth expansion |
 
-- **Framework**: Next.js 15 (App Router) with React 18
-- **NASA Data Integration**: NASA POWER API, NASA GIBS, Earthdata authentication
-- **Scientific Computing**: Temperature-methane correlation algorithms
-- **Mapping**: Leaflet with NASA satellite tiles
-- **UI**: Tailwind CSS, Radix UI components
-- **Charts**: Recharts for data visualization
-- **AI**: Google Genkit with Gemini 2.5
+`OPENROUTER_API_KEY` throws only at runtime if missing (build safe).
 
-### Project Structure
+Full reference: `.env.example` + `docs/NETLIFY_ENV_VARS_SETUP.md`.
 
-```text
-src/
-  lib/
-    nasa-data-service.ts        # Core NASA API integration service
-    data.ts                     # Data processing utilities
-    utils.ts                    # Helper functions
-  components/
-    simulation/
-      interactive-google-earth.tsx  # Award-winning 3D Google Earth simulation
-    dashboard/
-      satellite-map.tsx         # NASA GIBS satellite map integration
-      interactive-map.tsx       # Real-time hotspot visualization
-    ui/                         # Reusable UI components
-  app/
-    api/
-      transparent-dashboard/    # NASA data API endpoint
-    (app)/
-      simulation/              # Interactive 3D Google Earth visualization
-      dashboard/               # Main real-time dashboard
-      analysis/                # Scientific data analysis tools
-      prediction/              # AI-powered predictions
-      reporting/               # Risk assessment reports
-  hooks/
-    use-mobile.tsx             # Responsive design utilities
-    use-toast.ts               # Notification system
-```
+---
 
-## 🌍 Interactive 3D Google Earth Simulation
+## 🧵 API Endpoints
+| Endpoint | Type | Purpose |
+|----------|------|---------|
+| `/api/transparent-dashboard` | GET | Aggregated region metrics (temperature, anomalies, CH₄ availability) |
+| `/api/sentinel-processing` | POST | Methane layer Processing API proxy |
+| `/api/sentinel-wms` | GET | WMS fallback CH₄ tiles |
+| `/api/generate-report` | GET | Generates scientific (full / summary) report payload |
+| `/api/regions/[regionId]/metrics` | GET | Per‑region structured metrics |
+| `/api/regions/high-risk` | GET | High‑risk region shortlist |
 
-### Award-Winning Arctic Visualization
+---
 
-Our **Interactive 3D Google Earth Simulation** is a cutting-edge feature that provides immersive exploration of Arctic permafrost changes:
+## 🧬 Data Sources & Provenance
+| Source | Use | Link |
+|--------|-----|------|
+| NASA POWER | Surface temperature, baselines | https://power.larc.nasa.gov/ |
+| NASA GIBS | Context imagery | https://gibs.earthdata.nasa.gov/ |
+| Sentinel‑5P (TROPOMI) | Atmospheric methane | https://dataspace.copernicus.eu/ |
+| Sentinel Hub Processing API | CH₄ raster generation | https://docs.sentinel-hub.com/ |
+| OpenRouter (Gemini) | Optional narrative | https://openrouter.ai/ |
 
-#### Key Features:
-- **Dual View Modes**: Switch between satellite imagery and 3D terrain
-- **7 Major Hotspots**: Real methane emission sites across the Arctic
-- **Time Animation**: Play through 12 months of data with speed controls
-- **Region Filtering**: Focus on Siberia, Alaska, Canada, or Greenland
-- **Visualization Layers**: Temperature anomaly, methane emissions, permafrost extent, risk assessment
-- **Interactive Controls**: Zoom, rotate, fly-to-location capabilities
-- **Live Statistics**: Real-time calculations of averages and trends
+All metrics list `source`, `retrieval timestamp`, and `confidence`. AI never modifies raw values.
 
-#### Technical Implementation:
-```typescript
-// Embedded Google Maps satellite view
-<iframe src={`https://www.google.com/maps/embed/v1/view
-  ?key=${API_KEY}
-  &center=${lat},${lng}
-  &zoom=${zoom}
-  &maptype=satellite`}
-/>
+---
 
-// Google Earth 3D terrain integration
-<iframe src={`https://earth.google.com/web/
-  @${lat},${lng},${altitude}a,${heading}d,${tilt}y`}
-/>
-```
+## 🤖 AI Usage Disclosure
+| Area | AI Role | Safeguard |
+|------|---------|-----------|
+| Report Narrative | Summaries & contextual prose | Metrics generated first deterministically |
+| Code Scaffolding | Minor boilerplate suggestions | Manual audit & edits |
+| No Synthetic Data | — | Explicit runtime guards |
 
-#### Access the Simulation:
-Navigate to `/simulation` or click "3D Simulation" in the sidebar to explore Arctic permafrost in an entirely new way!
+No AI images/video currently used. Future AI media (if any) will include visible watermarks.
 
-**📖 Full Documentation**: See [Interactive Google Earth Simulation Guide](./docs/interactive-google-earth-simulation.md)
+---
 
-### Core NASA Integration (`nasa-data-service.ts`)
+## ⚡ Performance & Optimization
+| Optimization | Status |
+|--------------|--------|
+| Turbopack Dev Startup | ~2–4s ✔ |
+| Bundle Split | Shared 102 kB ✔ |
+| Source Maps (prod) | Disabled ✔ |
+| Package Import Optimization | lucide-react, recharts ✔ |
+| Memory Flags | 4 GB build (`NODE_OPTIONS`) ✔ |
+| Image Remote Patterns | NASA / Copernicus whitelisted ✔ |
+| PDF Generation | Client-side render + vector-friendly tables ✔ |
 
-The heart of our NASA integration provides:
+See: `docs/OPTIMIZATION_CHECKLIST.md` & `docs/DEPLOYMENT_SUMMARY.md`.
 
-```typescript
-// Real-time temperature data from NASA POWER
-const temperatureData = await fetchNASAPowerData(region);
+---
 
-// Scientific methane correlation
-const methaneConcentration = calculateMethaneFromTemperature(
-  temperatureAnomaly,
-  permafrostType,
-  seasonalFactor
-);
+## 🛡 Security & Integrity
+* Environment secrets never committed (see `.env.example`).
+* Runtime fails gracefully if AI key absent.
+* Security headers set (HSTS, X-Frame-Options, nosniff, etc.).
+* Deterministic pipelines separate from optional AI layer.
+* Transparent uncertainty reporting for scientific credibility.
 
-// Hotspot identification with confidence ratings
-const hotspots = identifyMethaneHotspots(data, confidenceThreshold);
-```
+---
 
-**Key Functions:**
-- `getMethaneHotspots()` - Real-time hotspot detection with NASA data
-- `getTemperatureAnomalies()` - NASA POWER temperature analysis
-- `getRiskAssessment()` - Scientific risk calculation
-- `authenticateEarthdata()` - Secure NASA authentication
+## 🗺 Roadmap
+| Phase | Feature | Status |
+|-------|---------|--------|
+| 1 | Core anomaly + CH₄ fusion | ✅ Done |
+| 2 | Alerting / threshold webhooks | 🔜 |
+| 3 | InSAR deformation ingestion (OPERA/S1) | Planned |
+| 4 | Albedo & moisture integration | Planned |
+| 5 | Carbon flux modeling linkage | Planned |
+| 6 | Research export APIs (Jupyter / OGC) | Planned |
+| 7 | Community peer review layer | Planned |
 
-## 📊 Data Sources & Transparency
-
-### Primary Data Sources
-
-1. **NASA POWER API** (Real-time)
-   - Meteorological and surface solar energy data
-   - Arctic region coverage with daily updates
-   - Historical baseline comparisons (1981-2010)
-
-2. **NASA GIBS** (Satellite Imagery)
-   - Real-time satellite tile layers
-   - Arctic region visualization
-   - Multiple spectral bands and temporal composites
-
-3. **Scientific Literature** (Correlation Models)
-   - Peer-reviewed methane-temperature relationships
-   - Arctic permafrost emission studies
-   - Uncertainty quantification methodologies
-
-### Data Update Frequencies
-
-- **Temperature Data**: Daily updates from NASA POWER
-- **Satellite Imagery**: Real-time from NASA GIBS
-- **Methane Estimates**: Calculated in real-time using latest temperature data
-- **Risk Assessments**: Updated with each data refresh
-
-## 🔧 API Integration Details
-
-### NASA POWER API
-
-```typescript
-// Example API call for Arctic temperature data
-const response = await fetch(`
-  https://power.larc.nasa.gov/api/temporal/daily/point
-  ?parameters=T2M,T2M_MAX,T2M_MIN
-  &community=RE
-  &longitude=${longitude}
-  &latitude=${latitude}
-  &start=${startDate}
-  &end=${endDate}
-  &format=JSON
-`);
-```
-
-### NASA Earthdata Authentication
-
-```typescript
-// Server-side authentication with bearer token
-const headers = {
-  'Authorization': `Bearer ${process.env.EARTHDATA_BEARER_TOKEN}`,
-  'Client-Id': process.env.EARTHDATA_CLIENT_ID
-};
-```
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-**Map not loading**
-- Ensure internet connectivity for NASA GIBS tiles
-- Check browser console for API errors
-- Verify NASA API key is properly configured
-
-**API rate limits**
-- Default DEMO_KEY allows 1000 requests/hour
-- Get your free NASA API key to increase to 30,000 requests/hour
-- Monitor usage in browser developer tools
-
-**Environment variables**
-- Ensure `.env.local` is in the root directory
-- Server-side variables (no NEXT_PUBLIC_) for NASA Earthdata
-- Restart development server after changes
-
-**Temperature data not updating**
-- Check NASA POWER API status at https://power.larc.nasa.gov
-- Verify date range parameters are valid
-- Arctic regions may have limited data coverage in winter
-
-### Debug Mode
-
-Enable detailed logging by setting:
-
-```env
-NODE_ENV=development
-DEBUG=cryo-scope:*
-```
-
-## 🧪 Scientific Validation
-
-### Methane Correlation Accuracy
-
-Our methane estimation approach has been validated against:
-- Historical Sentinel-5P observations
-- Ground-based chamber measurements
-- Arctic research station data
-- Peer-reviewed emission inventories
-
-**Confidence Metrics:**
-- Overall accuracy: 88%
-- Temperature correlation: R² = 0.76
-- Seasonal adjustment: ±15% uncertainty
-- Regional scaling: Validated for 4 Arctic regions
-
-### Data Quality Assurance
-
-- Real-time data validation and outlier detection
-- Historical baseline comparisons for anomaly detection
-- Cross-validation with multiple NASA data products
-- Transparent confidence reporting in all outputs
-
-## 📈 Future Enhancements
-
-### Planned NASA Integrations
-
-- **Direct Sentinel-5P Integration**: Real methane observations via NASA CMR
-- **MODIS Land Surface Temperature**: Enhanced thermal analysis
-- **ICESat-2**: Arctic elevation and ice thickness data
-- **GRACE**: Permafrost hydrology and groundwater changes
-
-### Advanced Features
-
-- Machine learning models for methane prediction
-- Multi-temporal change detection algorithms
-- Custom region-of-interest analysis tools
-- Real-time alert system for extreme events
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+---
 
 ## 🤝 Contributing
+We welcome scientific scrutiny, extensions, and performance improvements.
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and development process.
+1. Fork & branch (`feature/my-improvement`)
+2. Ensure build passes locally (`npm run build`)
+3. Open a PR with: motivation, methodology notes, validation evidence
+4. For scientific model changes include: assumptions, uncertainty impacts
 
-## 📞 Support
-
-- **Documentation**: Complete API documentation available in `/docs`
-- **Issues**: Report bugs and request features via GitHub Issues
-- **NASA Data Questions**: Refer to official NASA API documentation
-- **Scientific Methodology**: See `/docs/scientific-methodology.md`
+> See forthcoming `CONTRIBUTING.md` (add if missing) & open an Issue for major proposals.
 
 ---
 
-**Built with ❤️ for Arctic research and climate science**
+## 📚 Citation
+If this project aids your research:
+```
+@software{cryoscope_2025,
+  title        = {Cryo-Scope: Real-Time Arctic Permafrost & Methane Risk Intelligence Platform},
+  author       = {Contributors, Cryo-Scope},
+  year         = {2025},
+  url          = {https://github.com/shakhawathossain07/Cryo-Scope},
+  license      = {MIT},
+  note         = {NASA POWER & Sentinel-5P integrated analytics}
+}
+```
 
-*Real NASA data • Scientific accuracy • Open source*
+---
+
+## 📄 License
+MIT — see [LICENSE](LICENSE). Please retain data source attributions.
+
+---
+
+## 🙏 Acknowledgements
+* NASA POWER & GIBS teams for open climate intelligence.
+* Sentinel‑5P / Copernicus programme for atmospheric monitoring.
+* Open-source ecosystem: Next.js, Tailwind, Recharts, jsPDF.
+* Scientific community advancing permafrost & methane research.
+
+---
+
+<div align="center"><strong>Built with integrity for planetary resilience.</strong><br/>Real NASA data • Open Science • Reproducible Analytics</div>
+

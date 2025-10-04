@@ -5,19 +5,22 @@
  */
 
 import OpenAI from 'openai';
+import { ApiKeys } from './api-keys-service';
 
 // Initialize OpenAI client lazily to avoid build-time errors
 let openai: OpenAI | null = null;
 
-function getOpenAIClient(): OpenAI {
-  if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY environment variable is not set. Please configure it in your deployment settings.');
-  }
-  
+async function getOpenAIClient(): Promise<OpenAI> {
   if (!openai) {
+    const apiKey = await ApiKeys.getOpenRouterKey();
+    
+    if (!apiKey) {
+      throw new Error('OPENROUTER_API_KEY not found. Please configure it in Supabase or environment variables.');
+    }
+    
     openai = new OpenAI({
       baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: process.env.OPENROUTER_API_KEY,
+      apiKey: apiKey,
     });
   }
   
@@ -386,7 +389,7 @@ CRITICAL REQUIREMENTS FOR NASA/DATA SCIENCE ACCEPTANCE:
 
 Generate the complete, publication-quality report now.`;
 
-  const client = getOpenAIClient();
+  const client = await getOpenAIClient();
   const completion = await client.chat.completions.create({
     model: 'google/gemini-2.0-flash-exp:free',
     messages: [
@@ -521,7 +524,7 @@ Include:
 
 Be concise, scientific, and actionable.`;
 
-  const client = getOpenAIClient();
+  const client = await getOpenAIClient();
   const completion = await client.chat.completions.create({
     model: 'google/gemini-2.0-flash-exp:free',
     messages: [

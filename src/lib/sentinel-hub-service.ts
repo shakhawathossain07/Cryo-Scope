@@ -7,6 +7,7 @@
  */
 
 import axios from 'axios';
+import { ApiKeys } from './api-keys-service';
 
 // Sentinel Hub endpoints - TWO DIFFERENT SYSTEMS:
 // 1. Copernicus Dataspace (FREE): https://dataspace.copernicus.eu
@@ -39,11 +40,14 @@ let cachedToken: {
  * Tries Sentinel Hub Services first, then falls back to Copernicus Dataspace
  */
 async function getAccessToken(): Promise<string> {
-  const clientId = process.env.SENTINEL_HUB_CLIENT_ID;
-  const clientSecret = process.env.SENTINEL_HUB_CLIENT_SECRET;
+  const [clientId, clientSecret, instanceId] = await Promise.all([
+    ApiKeys.getSentinelHubClientId(),
+    ApiKeys.getSentinelHubClientSecret(),
+    ApiKeys.getSentinelHubInstanceId()
+  ]);
 
   if (!clientId || !clientSecret) {
-    throw new Error('Sentinel Hub credentials not configured');
+    throw new Error('Sentinel Hub credentials not configured in Supabase or environment');
   }
 
   // Return cached token if still valid (with 5 minute buffer)
@@ -81,7 +85,7 @@ async function getAccessToken(): Promise<string> {
     };
 
     console.log('   ✅ Copernicus Dataspace OAuth successful! Expires in', expires_in, 'seconds');
-    console.log('   📡 Instance ID:', process.env.SENTINEL_HUB_INSTANCE_ID);
+    console.log('   📡 Instance ID:', instanceId);
     console.log('   🎯 Available layers: CH4, CO, NO2, O3, SO2, HCHO');
     return access_token;
   } catch (copernicusError) {
@@ -131,7 +135,7 @@ async function getAccessToken(): Promise<string> {
         console.error('   4. Create Configuration with Sentinel-5P layers');
         console.error('   5. Update .env.local with credentials and instance ID');
         console.error('');
-        console.error('   Current config: Instance ID =', process.env.SENTINEL_HUB_INSTANCE_ID);
+        console.error('   Current config: Instance ID =', instanceId);
       }
       throw new Error('Failed to authenticate with both Copernicus Dataspace and Sentinel Hub');
     }
@@ -141,16 +145,16 @@ async function getAccessToken(): Promise<string> {
 /**
  * Get WMS tile URL for Sentinel-5P CH4 layer
  */
-export function getSentinel5PMethaneWMSUrl(
+export async function getSentinel5PMethaneWMSUrl(
   bbox: [number, number, number, number],
   width: number = 512,
   height: number = 512,
   date?: string
-): string {
-  const instanceId = process.env.SENTINEL_HUB_INSTANCE_ID;
+): Promise<string> {
+  const instanceId = await ApiKeys.getSentinelHubInstanceId();
   
   if (!instanceId) {
-    throw new Error('Sentinel Hub instance ID not configured');
+    throw new Error('Sentinel Hub instance ID not configured in Supabase or environment');
   }
 
   // Use endpoint based on which service authenticated (prefer Copernicus for Sentinel-5P)
@@ -190,10 +194,10 @@ export async function getSentinel5PMethaneStats(
   stdDev: number;
   sampleCount: number;
 }> {
-  const instanceId = process.env.SENTINEL_HUB_INSTANCE_ID;
+  const instanceId = await ApiKeys.getSentinelHubInstanceId();
   
   if (!instanceId) {
-    throw new Error('Sentinel Hub instance ID not configured');
+    throw new Error('Sentinel Hub instance ID not configured in Supabase or environment');
   }
 
   const token = await getAccessToken();
@@ -311,7 +315,7 @@ export async function getSentinel5PMethaneHotspots(
     const endStr = endDate.toISOString().split('T')[0];
 
     // Get WMS URL for visualization
-    const wmsUrl = getSentinel5PMethaneWMSUrl(bbox, 512, 512, endStr);
+    const wmsUrl = await getSentinel5PMethaneWMSUrl(bbox, 512, 512, endStr);
 
     console.log(`🛰️ Sentinel Hub CH4 layer available for ${regionId}`);
 
@@ -339,15 +343,17 @@ export async function validateSentinelHubConnection(): Promise<{
   hasCredentials: boolean;
   message: string;
 }> {
-  const clientId = process.env.SENTINEL_HUB_CLIENT_ID;
-  const clientSecret = process.env.SENTINEL_HUB_CLIENT_SECRET;
-  const instanceId = process.env.SENTINEL_HUB_INSTANCE_ID;
+  const [clientId, clientSecret, instanceId] = await Promise.all([
+    ApiKeys.getSentinelHubClientId(),
+    ApiKeys.getSentinelHubClientSecret(),
+    ApiKeys.getSentinelHubInstanceId()
+  ]);
 
   if (!clientId || !clientSecret || !instanceId) {
     return {
       connected: false,
       hasCredentials: false,
-      message: 'Sentinel Hub credentials not configured',
+      message: 'Sentinel Hub credentials not configured in Supabase or environment',
     };
   }
 
@@ -383,13 +389,13 @@ export interface SentinelHubTileLayerConfig {
   };
 }
 
-export function getSentinel5PMethaneLeafletConfig(
+export async function getSentinel5PMethaneLeafletConfig(
   bbox?: [number, number, number, number]
-): SentinelHubTileLayerConfig {
-  const instanceId = process.env.SENTINEL_HUB_INSTANCE_ID;
+): Promise<SentinelHubTileLayerConfig> {
+  const instanceId = await ApiKeys.getSentinelHubInstanceId();
   
   if (!instanceId) {
-    throw new Error('Sentinel Hub instance ID not configured');
+    throw new Error('Sentinel Hub instance ID not configured in Supabase or environment');
   }
 
   // Use Copernicus Dataspace endpoint for Sentinel-5P layers

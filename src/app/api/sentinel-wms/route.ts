@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
+import { ApiKeys } from '@/lib/api-keys-service';
 
 export const runtime = 'nodejs';
 
@@ -10,11 +11,13 @@ let cachedToken: {
 } | null = null;
 
 async function getAccessToken(): Promise<string> {
-  const clientId = process.env.SENTINEL_HUB_CLIENT_ID;
-  const clientSecret = process.env.SENTINEL_HUB_CLIENT_SECRET;
+  const [clientId, clientSecret] = await Promise.all([
+    ApiKeys.getSentinelHubClientId(),
+    ApiKeys.getSentinelHubClientSecret()
+  ]);
 
   if (!clientId || !clientSecret) {
-    throw new Error('Sentinel Hub credentials not configured');
+    throw new Error('Sentinel Hub credentials not configured in Supabase or environment');
   }
 
   // Return cached token if still valid (with 5 minute buffer)

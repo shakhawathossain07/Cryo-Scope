@@ -19,13 +19,22 @@ import 'server-only';
 import axios from 'axios';
 import { REGION_COORDINATES, type RegionKey } from './regions';
 import { getSentinel5PMethaneHotspots, validateSentinelHubConnection } from './sentinel-hub-service';
+import { ApiKeys } from './api-keys-service';
 
-// NASA API configuration - Key is optional for POWER; avoid hardcoding any key
-const NASA_API_KEY = (process.env.NEXT_PUBLIC_NASA_API_KEY || '').trim();
-const EARTHDATA_CLIENT_ID = process.env.EARTHDATA_CLIENT_ID || 'cryo-scope-app';
+// NASA API configuration - Keys retrieved from Supabase
+async function getNasaApiKey(): Promise<string> {
+  const key = await ApiKeys.getNasaApiKey();
+  return key || 'DEMO_KEY'; // Fallback to DEMO_KEY if not configured
+}
 
-function getEarthdataBearerToken() {
-  return (process.env.EARTHDATA_BEARER_TOKEN || process.env.EARTHDATA_TOKEN || '').trim();
+async function getEarthdataClientId(): Promise<string> {
+  const clientId = await ApiKeys.getEarthdataClientId();
+  return clientId || 'cryo-scope-app';
+}
+
+async function getEarthdataBearerToken(): Promise<string> {
+  const token = await ApiKeys.getEarthdataBearerToken();
+  return token || '';
 }
 
 // Data source transparency interfaces
@@ -71,8 +80,8 @@ const NASA_GIBS_ENDPOINT = 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/'
 const NASA_POWER_API = 'https://power.larc.nasa.gov/api/temporal/daily/point';
 const EARTHDATA_SEARCH_API = 'https://cmr.earthdata.nasa.gov/search';
 
-function getEarthdataAuthConfig() {
-  const token = getEarthdataBearerToken();
+async function getEarthdataAuthConfig() {
+  const token = await getEarthdataBearerToken();
 
   if (!token) {
     return {
@@ -82,11 +91,13 @@ function getEarthdataAuthConfig() {
     };
   }
 
+  const clientId = await getEarthdataClientId();
+
   return {
     isAuthenticated: true as const,
     headers: {
       Authorization: `Bearer ${token}`,
-      'Client-Id': EARTHDATA_CLIENT_ID,
+      'Client-Id': clientId,
       'User-Agent': 'Cryo-Scope/1.0'
     }
   };
@@ -437,7 +448,7 @@ function parseBoundingBox(boxValue?: string) {
 }
 
 async function fetchGranuleMethane(conceptId: string) {
-  const auth = getEarthdataAuthConfig();
+  const auth = await getEarthdataAuthConfig();
   if (!auth.isAuthenticated) {
     console.warn('Earthdata bearer token missing; skipping methane metadata fetch.');
     return null;
@@ -520,7 +531,7 @@ async function getTropomiMethaneHotspots(regionId: string): Promise<MethaneHotsp
   const region = REGION_COORDINATES[regionId as RegionKey];
   if (!region) throw new Error('Invalid region');
 
-  const auth = getEarthdataAuthConfig();
+  const auth = await getEarthdataAuthConfig();
   if (!auth.isAuthenticated) {
     console.info('Earthdata token not configured; skipping TROPOMI methane retrieval.');
     return [];
@@ -661,7 +672,7 @@ async function getEmitPlumeHotspots(regionId: string): Promise<MethaneHotspot[]>
   const region = REGION_COORDINATES[regionId as RegionKey];
   if (!region) throw new Error('Invalid region');
 
-  const auth = getEarthdataAuthConfig();
+  const auth = await getEarthdataAuthConfig();
   if (!auth.isAuthenticated) return [];
 
   // Use a 30-day window; EMIT overpasses are sparse
@@ -1323,7 +1334,7 @@ export async function validateNASAConnection(): Promise<NASAConnectivityStatus> 
   try {
     // Test NASA API connectivity with a simple request
     const response = await axios.get(`${NASA_POWER_API}?parameters=T2M&community=RE&longitude=-155&latitude=70&start=20240101&end=20240102&format=JSON`);
-    const earthdata = getEarthdataAuthConfig();
+    const earthdata = await getEarthdataAuthConfig();
     const sentinelHub = await validateSentinelHubConnection();
     const realTimeCapability: NASARealTimeCapability = {
       temperature: 'Real-time from NASA POWER API (1-6 hour latency)',
@@ -1333,9 +1344,10 @@ export async function validateNASAConnection(): Promise<NASAConnectivityStatus> 
         : 'Calculated estimates based on temperature correlations (NOT direct satellite measurement)'
     };
     
+    const nasaKey = await getNasaApiKey();
     return {
       connected: true,
-      apiKey: NASA_API_KEY ? NASA_API_KEY.substring(0, 8) + '...' : 'n/a',
+      apiKey: nasaKey && nasaKey !== 'DEMO_KEY' ? nasaKey.substring(0, 8) + '...' : 'DEMO_KEY',
       rateLimitRemaining: response.headers['x-ratelimit-remaining'] ? parseInt(response.headers['x-ratelimit-remaining']) : undefined,
       status: 'Connected to NASA APIs with authentication',
       dataFreshness: 'Data updated every 1-6 hours from NASA satellites',
@@ -1348,9 +1360,10 @@ export async function validateNASAConnection(): Promise<NASAConnectivityStatus> 
       imagery: 'Not available - connection failed',
       methane: 'Not available - connection failed'
     };
+    const nasaKey = await getNasaApiKey();
     return {
       connected: false,
-      apiKey: NASA_API_KEY ? NASA_API_KEY.substring(0, 8) + '...' : 'n/a',
+      apiKey: nasaKey && nasaKey !== 'DEMO_KEY' ? nasaKey.substring(0, 8) + '...' : 'DEMO_KEY',
       status: `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       dataFreshness: 'No connection to NASA services',
       realTimeCapability
