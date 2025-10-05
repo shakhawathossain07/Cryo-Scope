@@ -18,6 +18,12 @@ export interface ScientificReport {
   riskAssessment: string;
   recommendations: string;
   citations: string;
+  // Optional fields from scientific-report-service
+  executiveSummary?: string;
+  findings?: string;
+  dataQuality?: string;
+  fullReport?: string;
+  generatedAt?: string;
 }
 
 export interface DashboardData {
@@ -60,6 +66,17 @@ export class PDFExportService {
     report: ScientificReport,
     data: DashboardData
   ): Promise<Blob> {
+    console.log('[PDF Export] Starting PDF generation...');
+    console.log('[PDF Export] Report sections:', {
+      abstract: report.abstract?.length || 0,
+      introduction: report.introduction?.length || 0,
+      methodology: report.methodology?.length || 0,
+      results: report.results?.length || 0,
+      discussion: report.discussion?.length || 0,
+      riskAssessment: report.riskAssessment?.length || 0,
+      recommendations: report.recommendations?.length || 0
+    });
+
     // Title page
     this.addTitlePage(report.title);
 
@@ -238,10 +255,11 @@ export class PDFExportService {
   }
 
   /**
-   * Add section header
+   * Add section header with proper spacing
    */
   private addSectionHeader(title: string) {
-    if (this.currentY > this.pageHeight - 40) {
+    // Ensure header has at least 50mm space (header + some content)
+    if (this.currentY > this.pageHeight - 50) {
       this.addNewPage();
     }
 
@@ -255,20 +273,23 @@ export class PDFExportService {
   }
 
   /**
-   * Add paragraph text
+   * Add paragraph text with proper page break handling
    */
   private addParagraph(text: string) {
+    const lineHeight = 6;
     const lines = this.doc.splitTextToSize(
       text,
       this.pageWidth - 2 * this.margin
     );
 
     lines.forEach((line: string) => {
-      if (this.currentY > this.pageHeight - 30) {
+      // Check if there's enough space for this line BEFORE writing it
+      // Use conservative margin (40mm = about 6-7 lines from bottom)
+      if (this.currentY + lineHeight > this.pageHeight - 40) {
         this.addNewPage();
       }
       this.doc.text(line, this.margin, this.currentY);
-      this.currentY += 6;
+      this.currentY += lineHeight;
     });
 
     this.currentY += 5; // Extra space after paragraph
@@ -280,7 +301,8 @@ export class PDFExportService {
   private addDataTable(data: DashboardData) {
     this.tableCount++;
 
-    if (this.currentY > this.pageHeight - 80) {
+    // Ensure table has at least 100mm space
+    if (this.currentY > this.pageHeight - 100) {
       this.addNewPage();
     }
 
@@ -344,7 +366,8 @@ export class PDFExportService {
   private async addTemperatureChart(data: DashboardData) {
     this.figureCount++;
 
-    if (this.currentY > this.pageHeight - 100) {
+    // Ensure chart has at least 120mm space (chart is tall)
+    if (this.currentY > this.pageHeight - 120) {
       this.addNewPage();
     }
 
@@ -485,7 +508,8 @@ export class PDFExportService {
   private async addMethaneChart(data: DashboardData) {
     this.figureCount++;
 
-    if (this.currentY > this.pageHeight - 100) {
+    // Ensure chart has at least 120mm space
+    if (this.currentY > this.pageHeight - 120) {
       this.addNewPage();
     }
 
@@ -629,7 +653,8 @@ export class PDFExportService {
   private async addRiskMatrix(data: DashboardData) {
     this.figureCount++;
 
-    if (this.currentY > this.pageHeight - 100) {
+    // Ensure matrix has at least 140mm space (matrix + caption)
+    if (this.currentY > this.pageHeight - 140) {
       this.addNewPage();
     }
 

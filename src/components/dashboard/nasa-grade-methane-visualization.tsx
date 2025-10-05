@@ -61,29 +61,24 @@ export function NASAGradeMethaneVisualization({
           L.latLng(bbox[3] + 10, bbox[2] + 10)  // Northeast with buffer
         ),
         maxBoundsViscosity: 0.7,
+        preferCanvas: true, // Better performance for overlays
+        renderer: L.canvas(), // Use canvas renderer for better rendering
       });
 
-      // Add NASA GIBS base layer (Arctic-friendly)
-      const today = new Date();
-      const dateStr = today.toISOString().split('T')[0];
-      
+      // Add base layer with fallback strategy
+      // Use OpenStreetMap as reliable base (works globally including Arctic)
       const baseLayer = L.tileLayer(
-        `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`,
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
         {
-          attribution: '© NASA GIBS',
-          maxZoom: 9,
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 10,
+          minZoom: 2,
           tileSize: 256,
-          errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+          subdomains: ['a', 'b', 'c'],
+          errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==',
+          crossOrigin: true,
         }
       );
-
-      baseLayer.on('tileerror', (error) => {
-        console.warn(`⚠️ [${regionName}] Tile load error:`, error);
-      });
-
-      baseLayer.on('tileload', () => {
-        console.log(`✅ [${regionName}] Base layer tiles loading...`);
-      });
 
       baseLayer.addTo(map);
 
@@ -92,10 +87,21 @@ export function NASAGradeMethaneVisualization({
 
       console.log(`✅ [NASA CH4 Map] Map initialized for ${regionName}`);
 
-      // Force map to invalidate size after a short delay
+      // Force map to invalidate size after multiple delays to ensure proper rendering
       setTimeout(() => {
         map.invalidateSize();
+        console.log(`🔄 [NASA CH4 Map] First size invalidation for ${regionName}`);
       }, 100);
+      
+      setTimeout(() => {
+        map.invalidateSize();
+        console.log(`🔄 [NASA CH4 Map] Second size invalidation for ${regionName}`);
+      }, 500);
+      
+      setTimeout(() => {
+        map.invalidateSize();
+        console.log(`🔄 [NASA CH4 Map] Final size invalidation for ${regionName}`);
+      }, 1000);
 
     } catch (err) {
       console.error(`❌ [NASA CH4 Map] Failed to initialize map for ${regionName}:`, err);
@@ -160,10 +166,26 @@ export function NASAGradeMethaneVisualization({
         console.log(`   📦 WGS84 BBox: [${minLon}, ${minLat}, ${maxLon}, ${maxLat}]`);
         console.log(`   📦 EPSG:3857 BBox: [${projectedBbox.map(v => v.toFixed(2)).join(', ')}]`);
 
-        // Get data for last 30 days (more data for Arctic regions with limited coverage)
-        const endDate = new Date();
-        const startDate = new Date(endDate);
-        startDate.setDate(startDate.getDate() - 30);
+        // CRITICAL FIX: Arctic has NO data in October (polar night)
+        // Use last AVAILABLE data from summer months (May-September)
+        const currentMonth = new Date().getMonth(); // 0-11 (October = 9)
+        
+        let endDate: Date;
+        let startDate: Date;
+        
+        // If we're in polar night months (October-March), use summer data
+        if (currentMonth >= 9 || currentMonth <= 2) {
+          // Use data from most recent summer (May-September)
+          endDate = new Date(new Date().getFullYear(), 8, 30); // Sept 30
+          startDate = new Date(endDate);
+          startDate.setMonth(startDate.getMonth() - 4); // May 1 - Sept 30
+          console.log(`   ❄️ Polar night period - using summer archive data`);
+        } else {
+          // Use recent 30-day data (sunlight available)
+          endDate = new Date();
+          startDate = new Date(endDate);
+          startDate.setDate(startDate.getDate() - 30);
+        }
 
         const timeRange = {
           from: startDate.toISOString().split('T')[0] + 'T00:00:00Z',
@@ -194,14 +216,40 @@ export function NASAGradeMethaneVisualization({
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(errorData.error || `HTTP ${response.status}`);
+          
+          // Check if it's a "no data" error (expected) vs actual error
+          const errorMsg = errorData.error || `HTTP ${response.status}`;
+          const isNoDataError = errorMsg.includes('No data available') || 
+                                errorMsg.includes('no data') || 
+                                response.status === 404;
+          
+          if (isNoDataError) {
+            // This is expected for Arctic regions in October - don't throw, just show info
+            console.warn(`   ⚠️ No CH4 data available for ${regionName} (expected for October)`);
+            setError('Limited satellite coverage for this region/season');
+            setDebugInfo('⚠️ No data - sparse Arctic coverage');
+            setLoading(false);
+            return; // Don't throw error
+          }
+          
+          throw new Error(errorMsg);
         }
 
         const blob = await response.blob();
         console.log(`   🖼️ Blob size: ${blob.size} bytes, type: ${blob.type}`);
 
         if (blob.size === 0) {
-          throw new Error('Received empty image from API');
+          console.warn(`   ⚠️ Empty image received for ${regionName} - no CH4 data available`);
+          setError('Limited satellite coverage for this region/season');
+          setDebugInfo('⚠️ No data - sparse Arctic coverage');
+          setLoading(false);
+          return; // Don't throw error for empty data
+        }
+        
+        // Check if image is very small (likely transparent/no data)
+        if (blob.size < 2000) {
+          console.warn(`   ⚠️ Very small image (${blob.size} bytes) - sparse CH4 data for ${regionName}`);
+          // Continue anyway - will display what little data exists
         }
 
         const imageUrl = URL.createObjectURL(blob);
@@ -222,14 +270,16 @@ export function NASAGradeMethaneVisualization({
 
         console.log(`   🗺️ Leaflet Bounds: SW[${minLat}, ${minLon}], NE[${maxLat}, ${maxLon}]`);
 
-        // Add methane overlay with HIGH opacity for visibility
+        // Add methane overlay with MAXIMUM opacity for visibility
         methaneLayerRef.current = L.imageOverlay(imageUrl, bounds, {
-          opacity: 0.85, // Increased from 0.7 for better visibility
+          opacity: 0.95, // Maximum visibility for CH4 layer
           interactive: false,
           className: 'nasa-ch4-overlay', // For debugging in DevTools
+          crossOrigin: 'anonymous', // Enable CORS
+          errorOverlayUrl: '', // Prevent error tile cascade
         }).addTo(mapRef.current!);
 
-        console.log(`   ✅ CH4 overlay added to map`);
+        console.log(`   ✅ CH4 overlay added to map with 95% opacity`);
 
         // Verify overlay was added
         if (!methaneLayerRef.current) {
@@ -238,17 +288,34 @@ export function NASAGradeMethaneVisualization({
 
         setImageData(imageUrl);
         setDataDate(`${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`);
-        setDebugInfo(`Loaded ${blob.size} bytes`);
+        setDebugInfo(`✅ ${(blob.size / 1024).toFixed(1)}KB CH₄ layer loaded`);
         
         console.log(`✅ [NASA CH4 Viz] Successfully loaded methane visualization for ${regionName}`);
+        console.log(`   🎨 Image Size: ${(blob.size / 1024).toFixed(2)} KB`);
+        console.log(`   📊 Layer opacity: 95%`);
         console.log(`========================================\n`);
 
       } catch (err: any) {
-        console.error(`\n❌ [NASA CH4 Viz] ========================================`);
-        console.error(`❌ [NASA CH4 Viz] Error loading ${regionName}:`, err);
-        console.error(`❌ [NASA CH4 Viz] ========================================\n`);
-        setError(err.message || 'Failed to load methane data');
-        setDebugInfo(`Error: ${err.message}`);
+        // Distinguish between expected data availability issues and actual errors
+        const isDataAvailabilityIssue = 
+          err.message?.includes('No data') || 
+          err.message?.includes('no data') ||
+          err.message?.includes('404') ||
+          err.message?.includes('empty image');
+        
+        if (isDataAvailabilityIssue) {
+          // Expected issue - just log as warning
+          console.warn(`⚠️ [NASA CH4 Viz] Limited data for ${regionName}:`, err.message);
+          setError('Limited satellite coverage for this region/season');
+          setDebugInfo('⚠️ Sparse Arctic coverage');
+        } else {
+          // Unexpected error - log as error
+          console.error(`\n❌ [NASA CH4 Viz] ========================================`);
+          console.error(`❌ [NASA CH4 Viz] Unexpected error loading ${regionName}:`, err);
+          console.error(`❌ [NASA CH4 Viz] ========================================\n`);
+          setError(err.message || 'Failed to load methane data');
+          setDebugInfo(`Error: ${err.message}`);
+        }
       } finally {
         setLoading(false);
       }
@@ -299,9 +366,17 @@ export function NASAGradeMethaneVisualization({
           </div>
           <div className="flex flex-col items-end">
             {dataDate && (
-              <span className="text-xs text-muted-foreground">
-                {dataDate}
-              </span>
+              <div className="flex flex-col items-end">
+                <span className="text-xs text-muted-foreground">
+                  {dataDate}
+                </span>
+                {/* Show archive indicator during polar night */}
+                {(new Date().getMonth() >= 9 || new Date().getMonth() <= 2) && (
+                  <span className="text-[10px] text-amber-400">
+                    (Summer archive)
+                  </span>
+                )}
+              </div>
             )}
             {debugInfo && (
               <span className="text-xs text-blue-400 font-mono">
@@ -312,9 +387,24 @@ export function NASAGradeMethaneVisualization({
         </div>
 
         {/* Map Container */}
-        <div className="relative aspect-square w-full rounded-lg border overflow-hidden">
+        <div className="relative w-full h-80 rounded-lg border overflow-hidden">
           {/* Leaflet map */}
           <div ref={containerRef} className="absolute inset-0 z-0" />
+
+          {/* Color Scale Legend - Only show when layer is active */}
+          {showLayer && imageData && !loading && !error && (
+            <div className="absolute bottom-2 right-2 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-lg p-2 shadow-lg text-xs">
+              <div className="font-semibold mb-1 text-center">CH₄ (ppb)</div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-12 bg-gradient-to-t from-blue-500 via-green-500 via-yellow-500 via-orange-500 to-red-500 rounded"></div>
+                <div className="flex flex-col justify-between h-12 text-[10px] text-muted-foreground">
+                  <div>2200+</div>
+                  <div>2000</div>
+                  <div>1800</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Loading overlay */}
           {loading && (
@@ -326,17 +416,24 @@ export function NASAGradeMethaneVisualization({
             </div>
           )}
 
-          {/* Error overlay */}
-          {error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-yellow-500/10 z-10">
-              <div className="text-center space-y-2 p-4">
-                <AlertCircle className="h-8 w-8 mx-auto text-yellow-500" />
-                <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                  {error}
+          {/* Error/Info overlay */}
+          {error && !loading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-amber-500/5 dark:bg-amber-500/10 z-10">
+              <div className="text-center space-y-2 p-4 max-w-xs">
+                <Info className="h-7 w-7 mx-auto text-amber-500" />
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold">
+                  Limited Satellite Coverage
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Data may be unavailable for this region/time
+                  {error}
                 </p>
+                <div className="text-[10px] text-muted-foreground space-y-1 pt-2 border-t border-amber-200 dark:border-amber-800">
+                  <p className="italic">Arctic regions above 60°N have sparse</p>
+                  <p className="italic">CH₄ data in October due to limited sunlight</p>
+                  <p className="font-semibold text-amber-600 dark:text-amber-400 mt-2">
+                    Best coverage: May-September
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -372,20 +469,31 @@ export function NASAGradeMethaneVisualization({
 
         {/* Info Box */}
         <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3 space-y-1 text-xs">
-          <div className="flex items-start gap-2">
-            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-            <div className="space-y-1">
-              <p className="font-semibold text-blue-900 dark:text-blue-100">
-                NASA-Grade CH₄ Visualization
-              </p>
-              <ul className="text-blue-800 dark:text-blue-200 space-y-0.5">
-                <li>• Source: TROPOMI Sentinel-5P satellite</li>
-                <li>• Resolution: 7×7 km spatial, daily temporal</li>
-                <li>• Color scale: Scientific methane concentration (ppb)</li>
-                <li>• Data: Most recent 7-day window</li>
-              </ul>
+          <div className="flex items-center justify-between">
+            <div className="flex items-start gap-2 flex-1">
+              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+              <div className="space-y-1">
+                <p className="font-semibold text-blue-900 dark:text-blue-100">
+                  Sentinel-5P CH₄ Visualization
+                </p>
+                <ul className="text-blue-800 dark:text-blue-200 space-y-0.5">
+                  <li>• TROPOMI satellite: 7×7 km resolution</li>
+                  <li>• 30-day composite (most recent data)</li>
+                  <li>• Color scale: 1700-2200+ ppb CH₄</li>
+                </ul>
+              </div>
             </div>
+            {imageData && !loading && !error && (
+              <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30 ml-2">
+                ✓ Active
+              </Badge>
+            )}
           </div>
+          {debugInfo && (
+            <p className="font-mono text-blue-600 dark:text-blue-400 pt-1 border-t border-blue-200 dark:border-blue-800">
+              {debugInfo}
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>

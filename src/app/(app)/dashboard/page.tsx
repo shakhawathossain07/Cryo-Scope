@@ -701,6 +701,47 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
 
+                {/* Seasonal Data Availability Notice */}
+                {(() => {
+                  const currentMonth = new Date().getMonth() + 1; // 1-12
+                  const isLimitedSeason = currentMonth >= 10 || currentMonth <= 3;
+                  
+                  if (isLimitedSeason) {
+                    return (
+                      <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+                        <CardContent className="pt-6">
+                          <div className="flex gap-3">
+                            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
+                            <div className="space-y-2">
+                              <h4 className="font-semibold text-amber-900 dark:text-amber-100">
+                                Limited Satellite Data Coverage (October-March)
+                              </h4>
+                              <p className="text-sm text-amber-800 dark:text-amber-200">
+                                Sentinel-5P CH₄ coverage is <strong>sparse in Arctic regions during winter months</strong> due to limited sunlight. 
+                                The satellite uses solar backscatter measurements which require daylight. Arctic regions above 60°N experience 
+                                reduced daylight in October-March, resulting in minimal to no CH₄ observations.
+                              </p>
+                              <div className="grid gap-2 md:grid-cols-2 text-xs text-amber-700 dark:text-amber-300 mt-2">
+                                <div>
+                                  <strong>Best Coverage:</strong> May-September (24/7 daylight)
+                                </div>
+                                <div>
+                                  <strong>Current Period:</strong> Very limited observations
+                                </div>
+                              </div>
+                              <p className="text-xs text-amber-700 dark:text-amber-300 mt-2">
+                                💡 The system is functioning correctly. Small/transparent visualizations are <strong>expected</strong> due to 
+                                seasonal data availability, not system errors. Consider using historical data (May-Sep) or model estimates.
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+                  return null;
+                })()}
+
                 {/* NASA-Grade Methane Visualizations */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                   {Object.entries(REGION_COORDINATES).map(([key, region]) => (

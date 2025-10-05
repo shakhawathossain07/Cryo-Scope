@@ -52,103 +52,92 @@ async function getAccessToken(): Promise<string> {
 }
 
 /**
- * NASA-Grade Methane Visualization Evalscript - MILITARY PRECISION
+ * NASA-Grade Methane Visualization Evalscript - MAXIMUM VISIBILITY
  * Visualizes Sentinel-5P TROPOMI CH4 concentrations with scientific color scale
  * 
- * Color Scale (ppb equivalent):
- * - Dark Blue: <1750 ppb (Very Low)
- * - Blue: 1750-1850 ppb (Background)
- * - Green: 1850-1950 ppb (Normal)
- * - Yellow: 1950-2050 ppb (Elevated)
- * - Orange: 2050-2150 ppb (High)
- * - Red: 2150+ ppb (Critical)
- * 
- * ENHANCED: Increased visibility, handles sparse data, debug output
+ * CRITICAL FIX: Sentinel-5P CH4 comes in mol/m² units (e.g. 0.00186 = 1860 ppb)
+ * Need to convert and handle actual data format correctly
  */
 const METHANE_EVALSCRIPT = `
 //VERSION=3
 function setup() {
   return {
     input: [{
-      bands: ["CH4", "dataMask"],
-      units: "DN"
+      bands: ["CH4"],
+      units: "DN"  // Get raw data number
     }],
     output: {
-      bands: 4
+      bands: 4,
+      sampleType: "AUTO"
     }
   };
 }
 
 function evaluatePixel(sample) {
-  // CH4 values are in mol/m² - convert to ppb equivalent for visualization
-  // TROPOMI typical range: 0.0018 to 0.0022 mol/m² ≈ 1700-2200 ppb
-  let ch4 = sample.CH4;
+  let ch4Raw = sample.CH4;
   
-  // Check if we have valid data
-  if (sample.dataMask === 0 || ch4 === 0) {
-    // No data - return transparent
+  // Check for truly missing data
+  if (ch4Raw == null || ch4Raw === undefined || ch4Raw < 0) {
+    return [0, 0, 0, 0];  // Transparent for no-data
+  }
+  
+  // Sentinel-5P CH4 is in mol/m² (e.g., 0.00186 mol/m²)
+  // Convert to ppb equivalent: multiply by 1,000,000
+  // Typical range: 0.00175 - 0.00195 mol/m² = 1750-1950 ppb
+  let ch4 = ch4Raw;
+  
+  // If value is very small (mol/m² format), convert to ppb
+  if (ch4 > 0 && ch4 < 0.01) {
+    ch4 = ch4 * 1000000;  // Convert mol/m² to ppb equivalent
+  }
+  
+  // If still zero or negative, treat as no-data
+  if (ch4 <= 0) {
     return [0, 0, 0, 0];
   }
   
-  // Normalize to ppb scale (scientific conversion)
-  // Standard atmosphere: 1 mol/m² column ≈ 1 ppm = 1000 ppb
-  // TROPOMI measures total column, typical values 0.0018-0.0022 mol/m²
-  let ch4_ppb = ch4 * 1000000; // Convert mol/m² to ppb equivalent
+  // Normalize to expected CH4 range (1700-2200 ppb for Arctic)
+  let minCH4 = 1700;
+  let maxCH4 = 2200;
+  let normalized = Math.max(0, Math.min(1, (ch4 - minCH4) / (maxCH4 - minCH4)));
   
-  // Define color scale thresholds (ppb)
-  let veryLow = 1750;
-  let background = 1850;
-  let normal = 1950;
-  let elevated = 2050;
-  let high = 2150;
+  // Apply scientific color gradient: blue (low) -> red (high)
+  let r, g, b;
   
-  let r, g, b, a;
-  
-  if (ch4_ppb < veryLow) {
-    // Very low - dark blue (rare, likely data quality issue)
+  if (normalized < 0.2) {
+    // Deep blue (1700-1800 ppb)
+    let t = normalized / 0.2;
     r = 0.0;
-    g = 0.0;
-    b = 0.5;
-    a = 0.6;
-  } else if (ch4_ppb < background) {
-    // Background - blue
+    g = t * 0.4;
+    b = 0.7 + t * 0.3;
+  } else if (normalized < 0.4) {
+    // Blue to cyan (1800-1900 ppb)
+    let t = (normalized - 0.2) / 0.2;
     r = 0.0;
-    g = 0.4;
+    g = 0.4 + t * 0.6;
     b = 1.0;
-    a = 0.7;
-  } else if (ch4_ppb < normal) {
-    // Normal - green
+  } else if (normalized < 0.6) {
+    // Cyan to green (1900-2000 ppb)
+    let t = (normalized - 0.4) / 0.2;
     r = 0.0;
-    g = 0.9;
-    b = 0.2;
-    a = 0.8;
-  } else if (ch4_ppb < elevated) {
-    // Elevated - yellow
-    r = 1.0;
-    g = 0.95;
+    g = 1.0;
+    b = 1.0 * (1.0 - t);
+  } else if (normalized < 0.8) {
+    // Green to yellow/orange (2000-2100 ppb)
+    let t = (normalized - 0.6) / 0.2;
+    r = t * 1.0;
+    g = 1.0;
     b = 0.0;
-    a = 0.85;
-  } else if (ch4_ppb < high) {
-    // High - orange
-    r = 1.0;
-    g = 0.5;
-    b = 0.0;
-    a = 0.9;
   } else {
-    // Critical - red
+    // Orange to red (2100-2200+ ppb - HIGH)
+    let t = (normalized - 0.8) / 0.2;
     r = 1.0;
-    g = 0.0;
+    g = 1.0 * (1.0 - t * 0.6);
     b = 0.0;
-    a = 0.95;
   }
   
-  // For debugging: if we have ANY valid CH4 data, ensure it's visible
-  // Minimum opacity for valid data points
-  if (sample.dataMask > 0 && ch4 > 0) {
-    a = Math.max(a, 0.5);
-  }
-  
-  return [r, g, b, a];
+  // MAXIMUM VISIBILITY - 95% opacity for any valid CH4 data
+  return [r, g, b, 0.95];
 }
 `;
 
@@ -235,7 +224,7 @@ export async function POST(request: NextRequest) {
     );
 
     console.log(`   ✅ Processing API Response: ${response.status}`);
-    console.log(`   📏 Image Size: ${response.data.byteLength} bytes`);
+    console.log(`   📏 Image Size: ${response.data.byteLength} bytes (${(response.data.byteLength / 1024).toFixed(2)} KB)`);
     console.log(`   📊 Content-Type: ${response.headers['content-type']}`);
 
     if (response.data.byteLength === 0) {
@@ -244,6 +233,15 @@ export async function POST(request: NextRequest) {
         { error: 'No data available for this region/time' },
         { status: 404 }
       );
+    }
+    
+    // Check if image is suspiciously small (might be transparent)
+    if (response.data.byteLength < 2000) {
+      console.warn(`   ⚠️ Very small image (${response.data.byteLength} bytes) - likely sparse data`);
+      console.warn(`   💡 This is NORMAL for Arctic regions in October (limited sunlight)`);
+      console.warn(`   💡 Sentinel-5P coverage is sparse at high latitudes`);
+    } else {
+      console.log(`   ✨ Good image size - likely contains visible CH4 data`);
     }
 
     console.log('✅ ======================================');

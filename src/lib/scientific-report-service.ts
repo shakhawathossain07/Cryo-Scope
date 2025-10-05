@@ -12,12 +12,15 @@ let openai: OpenAI | null = null;
 
 async function getOpenAIClient(): Promise<OpenAI> {
   if (!openai) {
+    console.log('[ScientificReport] Initializing OpenAI client...');
     const apiKey = await ApiKeys.getOpenRouterKey();
     
     if (!apiKey) {
+      console.error('[ScientificReport] OPENROUTER_API_KEY not found!');
       throw new Error('OPENROUTER_API_KEY not found. Please configure it in Supabase or environment variables.');
     }
     
+    console.log('[ScientificReport] OpenAI client initialized successfully');
     openai = new OpenAI({
       baseURL: 'https://openrouter.ai/api/v1',
       apiKey: apiKey,
@@ -95,9 +98,11 @@ export interface DashboardData {
 export interface ScientificReport {
   title: string;
   executiveSummary: string;
+  introduction: string;
   methodology: string;
   findings: string;
   dataQuality: string;
+  discussion: string;
   riskAssessment: string;
   recommendations: string;
   citations: string;
@@ -389,54 +394,92 @@ CRITICAL REQUIREMENTS FOR NASA/DATA SCIENCE ACCEPTANCE:
 
 Generate the complete, publication-quality report now.`;
 
+  console.log('[ScientificReport] Getting OpenAI client...');
   const client = await getOpenAIClient();
-  const completion = await client.chat.completions.create({
-    model: 'google/gemini-2.0-flash-exp:free',
-    messages: [
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-  });
+  
+  console.log('[ScientificReport] Calling Gemini API...');
+  try {
+    const completion = await client.chat.completions.create({
+      model: 'google/gemini-2.0-flash-exp:free',
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+    });
 
-  const fullReport = completion.choices[0]?.message?.content || '';
+    console.log('[ScientificReport] API call successful');
+    const fullReport = completion.choices[0]?.message?.content || '';
+    
+    if (!fullReport) {
+      console.error('[ScientificReport] Empty response from API');
+      throw new Error('Empty response from AI model');
+    }
 
-  // Parse sections with enhanced extraction for NASA-grade reports
-  const sections = {
-    title: extractSection(fullReport, 'TITLE', 'ABSTRACT') || 
-           extractSection(fullReport, 'TITLE', 'EXECUTIVE SUMMARY') ||
-           extractTitle(fullReport) ||
-           'Arctic Permafrost and Methane Emissions Assessment',
-    executiveSummary: extractSection(fullReport, 'ABSTRACT', 'INTRODUCTION') || 
-                      extractSection(fullReport, 'EXECUTIVE SUMMARY', 'INTRODUCTION') ||
-                      extractSection(fullReport, 'ABSTRACT', 'METHODOLOGY') ||
-                      fullReport.substring(0, 800),
-    methodology: extractSection(fullReport, 'DATA SOURCES & METHODOLOGY', 'RESULTS') || 
-                 extractSection(fullReport, 'METHODOLOGY', 'RESULTS') ||
-                 extractSection(fullReport, 'METHODOLOGY', 'FINDINGS') || '',
-    findings: extractSection(fullReport, 'RESULTS', 'DATA QUALITY') || 
-              extractSection(fullReport, 'FINDINGS', 'DATA QUALITY') ||
-              extractSection(fullReport, 'RESULTS', 'DISCUSSION') || '',
-    dataQuality: extractSection(fullReport, 'DATA QUALITY & UNCERTAINTY ANALYSIS', 'DISCUSSION') || 
-                 extractSection(fullReport, 'DATA QUALITY', 'DISCUSSION') ||
-                 extractSection(fullReport, 'DATA QUALITY', 'RISK ASSESSMENT') || '',
-    riskAssessment: extractSection(fullReport, 'RISK ASSESSMENT & MONITORING PRIORITIES', 'RECOMMENDATIONS') || 
-                    extractSection(fullReport, 'RISK ASSESSMENT', 'RECOMMENDATIONS') ||
-                    extractSection(fullReport, 'DISCUSSION', 'RECOMMENDATIONS') || '',
-    recommendations: extractSection(fullReport, 'RECOMMENDATIONS', 'CONCLUSIONS') || 
-                     extractSection(fullReport, 'RECOMMENDATIONS', 'REFERENCES') ||
-                     extractSection(fullReport, 'RECOMMENDATIONS', 'CITATIONS') || '',
-    citations: extractSection(fullReport, 'REFERENCES', 'APPENDICES') || 
-               extractSection(fullReport, 'REFERENCES', null) ||
-               extractSection(fullReport, 'CITATIONS', null) || '',
-  };
+    console.log(`[ScientificReport] Generated report length: ${fullReport.length} characters`);
 
-  return {
-    ...sections,
-    fullReport,
-    generatedAt: new Date().toISOString(),
-  };
+    // Parse sections with enhanced extraction for NASA-grade reports
+    const sections = {
+      title: extractSection(fullReport, 'TITLE', 'ABSTRACT') || 
+             extractSection(fullReport, 'TITLE', 'EXECUTIVE SUMMARY') ||
+             extractTitle(fullReport) ||
+             'Arctic Permafrost and Methane Emissions Assessment',
+      executiveSummary: extractSection(fullReport, 'ABSTRACT', 'INTRODUCTION') || 
+                        extractSection(fullReport, 'EXECUTIVE SUMMARY', 'INTRODUCTION') ||
+                        extractSection(fullReport, 'ABSTRACT', 'DATA SOURCES') ||
+                        fullReport.substring(0, 800),
+      introduction: extractSection(fullReport, 'INTRODUCTION', 'DATA SOURCES') ||
+                    extractSection(fullReport, 'INTRODUCTION', 'METHODOLOGY') ||
+                    extractSection(fullReport, 'INTRODUCTION', 'METHODS') ||
+                    'Arctic permafrost regions are experiencing unprecedented warming patterns.',
+      methodology: extractSection(fullReport, 'DATA SOURCES & METHODOLOGY', 'RESULTS') || 
+                   extractSection(fullReport, 'METHODOLOGY', 'RESULTS') ||
+                   extractSection(fullReport, 'DATA SOURCES', 'RESULTS') || '',
+      findings: extractSection(fullReport, 'RESULTS', 'DATA QUALITY') || 
+                extractSection(fullReport, 'FINDINGS', 'DATA QUALITY') ||
+                extractSection(fullReport, 'RESULTS', 'DISCUSSION') || '',
+      dataQuality: extractSection(fullReport, 'DATA QUALITY & UNCERTAINTY ANALYSIS', 'DISCUSSION') || 
+                   extractSection(fullReport, 'DATA QUALITY', 'DISCUSSION') ||
+                   extractSection(fullReport, 'DATA QUALITY', 'RISK ASSESSMENT') || '',
+      discussion: extractSection(fullReport, 'DISCUSSION', 'RISK ASSESSMENT') ||
+                  extractSection(fullReport, 'DISCUSSION', 'RECOMMENDATIONS') ||
+                  extractSection(fullReport, 'DISCUSSION', 'CONCLUSIONS') || '',
+      riskAssessment: extractSection(fullReport, 'RISK ASSESSMENT & MONITORING PRIORITIES', 'RECOMMENDATIONS') || 
+                      extractSection(fullReport, 'RISK ASSESSMENT', 'RECOMMENDATIONS') ||
+                      extractSection(fullReport, 'RISK ASSESSMENT', 'CONCLUSIONS') || '',
+      recommendations: extractSection(fullReport, 'RECOMMENDATIONS', 'CONCLUSIONS') || 
+                       extractSection(fullReport, 'RECOMMENDATIONS', 'REFERENCES') ||
+                       extractSection(fullReport, 'RECOMMENDATIONS', 'CITATIONS') || '',
+      citations: extractSection(fullReport, 'REFERENCES', 'APPENDICES') || 
+                 extractSection(fullReport, 'REFERENCES', null) ||
+                 extractSection(fullReport, 'CITATIONS', null) || '',
+    };
+
+    // Log section extraction results
+    console.log('[ScientificReport] Extracted sections:', {
+      title: sections.title.substring(0, 50) + '...',
+      executiveSummary: sections.executiveSummary.length + ' chars',
+      introduction: sections.introduction.length + ' chars',
+      methodology: sections.methodology.length + ' chars',
+      findings: sections.findings.length + ' chars',
+      dataQuality: sections.dataQuality.length + ' chars',
+      discussion: sections.discussion.length + ' chars',
+      riskAssessment: sections.riskAssessment.length + ' chars',
+      recommendations: sections.recommendations.length + ' chars',
+      citations: sections.citations.length + ' chars'
+    });
+
+    return {
+      ...sections,
+      fullReport,
+      generatedAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('[ScientificReport] AI API error:', error);
+    console.error('[ScientificReport] Error details:', error instanceof Error ? error.message : 'Unknown error');
+    throw new Error(`AI report generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 /**

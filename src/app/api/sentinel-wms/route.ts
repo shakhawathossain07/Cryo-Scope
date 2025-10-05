@@ -106,6 +106,75 @@ export async function GET(request: NextRequest) {
     const transparent = getParam('TRANSPARENT') || 'true';
     const styles = getParam('STYLES') || '';
     const tiled = getParam('TILED');
+    
+    // Custom evalscript for CH4 visualization with color mapping
+    const ch4Evalscript = `
+//VERSION=3
+function setup() {
+  return {
+    input: [{
+      bands: ["CH4"],
+      units: "DN"
+    }],
+    output: { 
+      bands: 4,
+      sampleType: "AUTO"
+    }
+  };
+}
+
+function evaluatePixel(sample) {
+  // CH4 values from Sentinel-5P TROPOMI (typical range: 1750-1950 ppb)
+  const ch4 = sample.CH4;
+  
+  // No data check
+  if (ch4 === 0 || ch4 == null) {
+    return [0, 0, 0, 0]; // Transparent for no data
+  }
+  
+  // Normalize CH4 values
+  const minCH4 = 1750;
+  const maxCH4 = 1950;
+  const normalized = Math.max(0, Math.min(1, (ch4 - minCH4) / (maxCH4 - minCH4)));
+  
+  // Color scale: blue (low) -> cyan -> green -> yellow -> orange -> red (high)
+  let r, g, b;
+  
+  if (normalized < 0.2) {
+    // Deep blue to blue
+    const t = normalized / 0.2;
+    r = 0;
+    g = t * 0.3;
+    b = 0.8 + t * 0.2;
+  } else if (normalized < 0.4) {
+    // Blue to cyan
+    const t = (normalized - 0.2) / 0.2;
+    r = 0;
+    g = 0.3 + t * 0.7;
+    b = 1.0;
+  } else if (normalized < 0.6) {
+    // Cyan to green
+    const t = (normalized - 0.4) / 0.2;
+    r = 0;
+    g = 1.0;
+    b = 1.0 * (1 - t);
+  } else if (normalized < 0.8) {
+    // Green to yellow/orange
+    const t = (normalized - 0.6) / 0.2;
+    r = t;
+    g = 1.0;
+    b = 0;
+  } else {
+    // Orange to red
+    const t = (normalized - 0.8) / 0.2;
+    r = 1.0;
+    g = 1.0 * (1 - t * 0.5);
+    b = 0;
+  }
+  
+  return [r, g, b, 0.85]; // 85% opacity for good visibility
+}
+`;
 
     console.log(`📍 WMS Request: BBOX=${bbox}, LAYERS=${layers}, TIME=${time}`);
 
@@ -117,7 +186,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build WMS URL
+    // Build WMS URL - Use Process API for better control with evalscript
     const wmsUrl = `https://sh.dataspace.copernicus.eu/ogc/wms/${instanceId}`;
     const params = new URLSearchParams();
     params.set('SERVICE', service);
@@ -131,10 +200,19 @@ export async function GET(request: NextRequest) {
     params.set('CRS', crs);
     if (time) params.set('TIME', time);
     params.set('TRANSPARENT', transparent);
+    
+    // Add custom evalscript for CH4 visualization
+    if (layers.toUpperCase() === 'CH4') {
+      params.set('EVALSCRIPT', Buffer.from(ch4Evalscript).toString('base64'));
+      params.set('SHOWLOGO', 'false');
+      params.set('MAXCC', '100'); // Max cloud coverage
+      console.log('✨ Added custom CH4 color mapping evalscript');
+    }
+    
     // Pass-through any additional params not explicitly handled
     searchParams.forEach((value, key) => {
       const upper = key.toUpperCase();
-      if (!params.has(upper)) {
+      if (!params.has(upper) && upper !== 'EVALSCRIPT') {
         params.set(upper, value);
       }
     });

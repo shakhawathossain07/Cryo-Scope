@@ -14,9 +14,11 @@ import { PDFExportService } from '@/lib/pdf-export-service';
 interface ScientificReport {
   title: string;
   executiveSummary: string;
+  introduction: string;
   methodology: string;
   findings: string;
   dataQuality: string;
+  discussion: string;
   riskAssessment: string;
   recommendations: string;
   citations: string;
@@ -57,18 +59,45 @@ export default function ReportingPage() {
     
     try {
       const regionParam = selectedRegion === 'all' ? '' : `?region=${selectedRegion}`;
+      console.log(`[Reporting] Requesting report for region: ${selectedRegion}`);
       const response = await fetch(`/api/generate-report${regionParam}`);
       
+      console.log(`[Reporting] Response status: ${response.status} ${response.statusText}`);
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ details: 'Failed to parse error response' }));
-        console.error("Report generation failed:", errorData);
-        throw new Error(errorData.details || 'Failed to generate report');
+        // Try to get response text first
+        const responseText = await response.text();
+        console.log(`[Reporting] Response (${response.status}):`, responseText); // Changed to console.log for less alarming output
+        
+        // Try to parse as JSON
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch {
+          errorData = { details: responseText || `Server returned ${response.status}` };
+        }
+        
+        // Detect rate limit (429) error with detailed messages
+        if (response.status === 429 || 
+            errorData.details?.includes('429') || 
+            errorData.details?.toLowerCase().includes('rate limit')) {
+          
+          // Check if it's daily limit vs per-minute limit
+          if (errorData.details?.includes('free-models-per-day')) {
+            throw new Error('📊 Daily free tier limit reached.\n\nOptions:\n1. Add $5-10 credits to OpenRouter for 1000+ daily requests\n2. Try again tomorrow\n3. Switch to a paid AI model\n\nVisit: https://openrouter.ai/credits');
+          }
+          
+          throw new Error('⏰ Rate limit reached. Please wait 1-2 minutes and try again.\n\n(Free tier: Limited requests per minute)');
+        }
+        
+        throw new Error(errorData.details || errorData.error || `Failed to generate report (${response.status})`);
       }
 
       const data: ReportResponse = await response.json();
+      console.log('[Reporting] Report generated successfully');
       
       if (!data.success) {
-        throw new Error('Report generation failed');
+        throw new Error('Report generation failed - invalid response format');
       }
 
       setReportData(data);
@@ -80,10 +109,22 @@ export default function ReportingPage() {
       });
     } catch (error) {
       console.error('Report generation failed:', error);
+      
+      // Extract error message
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Unable to generate the scientific report. Please try again.';
+      
+      // Check if it's a rate limit error for special formatting
+      const isRateLimit = errorMessage.includes('Rate limit') || 
+                         errorMessage.includes('rate limit') ||
+                         errorMessage.includes('Daily free tier');
+      
       toast({
         variant: 'destructive',
-        title: 'Generation Failed',
-        description: 'Unable to generate the scientific report. Please try again.',
+        title: isRateLimit ? '⏰ Rate Limit Reached' : 'Generation Failed',
+        description: errorMessage,
+        duration: isRateLimit ? 8000 : 5000, // Longer duration for rate limit messages
       });
     } finally {
       setIsLoading(false);
@@ -240,11 +281,10 @@ ${report.citations}
       const scientificReport = {
         title: reportData.report.title,
         abstract: reportData.report.executiveSummary,
-        introduction:
-          'Arctic permafrost regions are experiencing unprecedented warming, with temperature anomalies exceeding 3σ from historical baselines. This report presents comprehensive analysis of four key monitoring regions using NASA POWER API temperature data and Sentinel-5P TROPOMI methane observations.',
+        introduction: reportData.report.introduction,
         methodology: reportData.report.methodology,
         results: reportData.report.findings,
-        discussion: reportData.report.dataQuality,
+        discussion: reportData.report.discussion,
         riskAssessment: reportData.report.riskAssessment,
         recommendations: reportData.report.recommendations,
         citations: reportData.report.citations,

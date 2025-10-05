@@ -20,18 +20,26 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
+    console.log('[API /generate-report] Starting report generation...');
+    
     const searchParams = request.nextUrl.searchParams;
     const region = searchParams.get('region');
     const format = searchParams.get('format') || 'full';
 
+    console.log(`[API /generate-report] Region: ${region || 'all'}, Format: ${format}`);
+
     // Fetch real-time dashboard data
     const dashboardUrl = new URL('/api/transparent-dashboard', request.url);
+    console.log(`[API /generate-report] Fetching dashboard data from ${dashboardUrl.toString()}`);
+    
     const dashboardResponse = await fetch(dashboardUrl.toString());
     
     if (!dashboardResponse.ok) {
+      console.error(`[API /generate-report] Dashboard fetch failed: ${dashboardResponse.status} ${dashboardResponse.statusText}`);
       throw new Error(`Failed to fetch dashboard data: ${dashboardResponse.statusText}`);
     }
 
+    console.log('[API /generate-report] Dashboard data fetched successfully');
     const rawDashboardData = await dashboardResponse.json();
 
     // Transform the raw dashboard data to match the expected DashboardData interface
@@ -82,16 +90,32 @@ export async function GET(request: NextRequest) {
     };
 
     // Validate dashboard data structure
-    if (!dashboardData || 
-        !dashboardData.regionTemperatureData || 
-        !dashboardData.regionMethaneSummary || 
-        !dashboardData.riskZones) {
-      console.error('[API /generate-report] Invalid dashboard data structure:', dashboardData);
-      throw new Error('Invalid dashboard data structure received');
+    if (!dashboardData) {
+      console.error('[API /generate-report] dashboardData is null/undefined');
+      throw new Error('Dashboard data is null');
     }
+    
+    if (!dashboardData.regionTemperatureData) {
+      console.error('[API /generate-report] regionTemperatureData is missing');
+      throw new Error('regionTemperatureData is missing from dashboard data');
+    }
+    
+    if (!dashboardData.regionMethaneSummary) {
+      console.error('[API /generate-report] regionMethaneSummary is missing');
+      throw new Error('regionMethaneSummary is missing from dashboard data');
+    }
+    
+    if (!dashboardData.riskZones) {
+      console.error('[API /generate-report] riskZones is missing');
+      console.error('[API /generate-report] Available keys:', Object.keys(dashboardData));
+      throw new Error('riskZones is missing from dashboard data');
+    }
+
+    console.log(`[API /generate-report] Dashboard data validated: ${dashboardData.regionTemperatureData.length} regions, ${dashboardData.riskZones.length} risk zones`);
 
     // Generate report or summary based on format
     if (format === 'summary' && region) {
+      console.log(`[API /generate-report] Generating summary for region: ${region}`);
       const summary = await generateRegionSummary(dashboardData, region);
       return NextResponse.json({
         success: true,
@@ -103,7 +127,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Generate full scientific report
+    console.log('[API /generate-report] Generating full scientific report...');
     const report = await generateScientificReport(dashboardData, region || undefined);
+    console.log('[API /generate-report] Report generated successfully');
 
     return NextResponse.json({
       success: true,
@@ -128,6 +154,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('[API /generate-report] Error:', error);
+    console.error('[API /generate-report] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json(
       { success: false, error: 'Internal Server Error', details: errorMessage },

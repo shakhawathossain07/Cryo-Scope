@@ -69,14 +69,22 @@ export function SentinelHubMethaneLayer({
             format: 'image/png',
             transparent: true,
             attribution: '© Sentinel Hub / Copernicus Sentinel-5P TROPOMI',
-            opacity: 0.7,
+            opacity: 0.85,
             version: '1.3.0',
-            crs: L.CRS.EPSG3857,
+            // Use EPSG:3857 (Web Mercator) to match base map
+            // @ts-ignore
+            crs: 'EPSG:3857',
             // WMS/server hint for cached tiles
             // @ts-ignore
             tiled: true,
             // @ts-ignore - TIME is a valid WMS parameter
             time: timeRange,
+            // @ts-ignore - Additional WMS parameters
+            styles: '',
+            maxcc: '100',
+            updateWhenIdle: false,
+            updateWhenZooming: false,
+            keepBuffer: 2,
           });
 
           methaneLayerRef.current = methaneLayer;
@@ -89,13 +97,47 @@ export function SentinelHubMethaneLayer({
             console.log(`🔄 Loading Sentinel Hub tiles for ${regionId} (attempt ${attemptRef.current + 1})...`);
           });
 
-          methaneLayer.on('tileload', () => {
+          methaneLayer.on('tileload', (e: any) => {
             tilesLoaded++;
             console.log(`📦 Tile loaded for ${regionId} (${tilesLoaded} tiles)`);
-            if (tilesLoaded > 0) {
-              setDataAvailable(true);
-              setLoading(false);
-              setError(null);
+            
+            // Check if tile has actual data (not just transparent)
+            if (e.tile && e.tile.complete) {
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                canvas.width = e.tile.width;
+                canvas.height = e.tile.height;
+                try {
+                  ctx.drawImage(e.tile, 0, 0);
+                  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                  const pixels = imageData.data;
+                  
+                  // Check if tile has non-transparent pixels
+                  let hasData = false;
+                  for (let i = 3; i < pixels.length; i += 4) {
+                    if (pixels[i] > 0) {
+                      hasData = true;
+                      break;
+                    }
+                  }
+                  
+                  if (hasData) {
+                    console.log(`✅ CH4 data detected in tile for ${regionId}`);
+                    setDataAvailable(true);
+                    setLoading(false);
+                    setError(null);
+                  }
+                } catch (err) {
+                  console.warn('Could not analyze tile data (CORS):', err);
+                  // Fallback: assume tile has data if it loaded
+                  if (tilesLoaded > 0) {
+                    setDataAvailable(true);
+                    setLoading(false);
+                    setError(null);
+                  }
+                }
+              }
             }
           });
 
@@ -235,6 +277,23 @@ export function SentinelHubMethaneLayer({
           <p>• Source: Sentinel-5P TROPOMI via Sentinel Hub</p>
           <p>• Visual overlay of methane concentrations</p>
           <p>• Data may be sparse at high latitudes in October</p>
+          
+          {/* Color Legend */}
+          <div className="mt-3 pt-3 border-t">
+            <p className="font-semibold mb-2 text-foreground">CH₄ Concentration Scale (ppb)</p>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px]">1750</span>
+              <div className="flex-1 h-4 rounded" style={{
+                background: 'linear-gradient(to right, #0066CC, #00CCCC, #00CC00, #CCCC00, #FF9900, #FF0000)'
+              }}></div>
+              <span className="text-[10px]">1950+</span>
+            </div>
+            <div className="flex justify-between text-[9px] mt-1 text-muted-foreground">
+              <span>Low</span>
+              <span>Moderate</span>
+              <span>High</span>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
