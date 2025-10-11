@@ -67,7 +67,7 @@ Permafrost thaw is a high‑impact climate tipping element. When it destabilizes
 
 | Resource | Link |
 |----------|------|
-| Production App | https://your-netlify-site.netlify.app |
+| Production App | https://cryoscope.netlify.app/ |
 | Source Code | https://github.com/shakhawathossain07/Cryo-Scope |
 | Quick Deploy Guide | `docs/QUICK_DEPLOY.md` |
 | Netlify Deployment (Full) | `docs/NETLIFY_DEPLOYMENT_GUIDE.md` |
