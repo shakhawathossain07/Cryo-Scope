@@ -64,7 +64,7 @@ export async function predictMethaneHotspotsAction(input: z.infer<typeof formSch
     return result;
   } catch (error) {
     console.error('Prediction error:', error);
-    throw new Error('Failed to generate methane hotspot predictions');
+    throw error;
   }
 }
 
@@ -73,6 +73,6 @@ export async function getPredictionsAction(type?: string) {
     return await SupabaseService.getPredictions(type);
   } catch (error) {
     console.error('Error fetching predictions:', error);
-    return [];
+    throw error;
   }
 }
