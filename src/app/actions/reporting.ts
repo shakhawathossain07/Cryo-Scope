@@ -64,7 +64,7 @@ export async function summarizeRiskAssessmentAction(input: z.infer<typeof formSc
     return result;
   } catch (error) {
     console.error('Risk assessment error:', error);
-    throw new Error('Failed to generate risk assessment summary');
+    throw error;
   }
 }
 
@@ -73,6 +73,6 @@ export async function getRiskAssessmentsAction() {
     return await SupabaseService.getRiskAssessments();
   } catch (error) {
     console.error('Error fetching risk assessments:', error);
-    return [];
+    throw error;
   }
 }

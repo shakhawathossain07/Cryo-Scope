@@ -45,7 +45,7 @@ export async function analyzePermafrostTrendAction(input: z.infer<typeof formSch
     return result;
   } catch (error) {
     console.error('Analysis error:', error);
-    throw new Error('Failed to analyze permafrost trend');
+    throw error;
   }
 }
 
@@ -54,6 +54,6 @@ export async function getPermafrostDataAction(limit = 100) {
     return await SupabaseService.getPermafrostData(limit);
   } catch (error) {
     console.error('Error fetching permafrost data:', error);
-    return [];
+    throw error;
   }
 }
